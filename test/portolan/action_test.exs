@@ -9,6 +9,8 @@ defmodule Portolan.ActionTest do
   alias Portolan.Test.User
   alias Portolan.Test.UserController
 
+  import Portolan.Test.Source, only: [line: 1]
+
   setup_all do
     {:ok, user_docs} = Docs.fetch(UserController)
     {:ok, broken_docs} = Docs.fetch(BrokenController)
@@ -31,7 +33,7 @@ defmodule Portolan.ActionTest do
       assert action.summary == "Lists users."
       assert action.description == "Users are sorted by name."
       assert action.deprecated == nil
-      assert action.line == 64
+      assert action.line == line("def index(_conn, params)")
       assert action.file =~ "test/support/api.ex"
     end
 
@@ -52,7 +54,8 @@ defmodule Portolan.ActionTest do
     test "map() parameters are not documented, with a warning", %{user_docs: docs} do
       assert {:ok, action, [warning, _response]} = Action.fetch(UserController, :export, docs)
       assert action.params == :undocumented
-      assert %Issue{severity: :warning, line: 86} = warning
+      assert warning.severity == :warning
+      assert warning.line == line("@spec export(")
       assert warning.message =~ "export/2"
       assert warning.message =~ "parameters"
     end

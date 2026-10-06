@@ -36,6 +36,7 @@ defmodule Mix.Tasks.Compile.PortolanTest do
              "description" => "The example API.\n\nUsed to test Portolan.\n"
            }
 
+    assert {:ok, %Portolan.Contracts{}} = Portolan.Contracts.read("priv/portolan/contracts.etf")
     assert {:noop, _diagnostics} = Task.run([])
   end
 

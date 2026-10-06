@@ -36,6 +36,7 @@ defmodule Portolan.MixProject do
     [
       {:phoenix, "~> 1.7"},
       {:decimal, "~> 2.0 or ~> 3.0", optional: true},
+      {:ecto, "~> 3.10", optional: true},
       {:ex_check, "~> 0.17", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
@@ -64,7 +65,7 @@ defmodule Portolan.MixProject do
       source_url: @source_url,
       extras: ["README.md", "CHANGELOG.md", "LICENSE"],
       groups_for_modules: [
-        "Phoenix integration": [Portolan.Controller],
+        "Phoenix integration": [Portolan.Controller, Portolan.Response, Portolan.Contracts],
         Compiler: [
           Portolan.Compiler,
           Portolan.Action,
@@ -82,7 +83,7 @@ defmodule Portolan.MixProject do
 
   defp dialyzer do
     [
-      plt_add_apps: [:mix, :ex_unit, :decimal],
+      plt_add_apps: [:mix, :ex_unit, :decimal, :ecto],
       plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
       flags: [:error_handling, :extra_return, :missing_return, :underspecs, :unmatched_returns]
     ]

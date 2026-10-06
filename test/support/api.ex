@@ -1,5 +1,6 @@
 defmodule Portolan.Test.User do
   @moduledoc false
+  @derive JSON.Encoder
   defstruct [:id, :name, :email, :role]
 
   @typedoc """
@@ -61,16 +62,25 @@ defmodule Portolan.Test.UserController do
   Users are sorted by name.
   """
   @spec index(Plug.Conn.t(), index_params()) :: {:ok, [User.t()]}
-  def index(_conn, _params), do: {:ok, []}
+  def index(_conn, params) do
+    {:ok, Enum.filter(users(), &(params[:role] in [nil, &1.role]))}
+  end
 
   @doc "Fetches a user."
   @spec show(Plug.Conn.t(), show_params()) :: {:ok, User.t()} | {:error, :not_found}
-  def show(_conn, _params), do: {:error, :not_found}
+  def show(_conn, %{id: id}) do
+    case Enum.find(users(), &(&1.id == id)) do
+      nil -> {:error, :not_found}
+      user -> {:ok, user}
+    end
+  end
 
   @doc "Creates a user."
   @spec create(Plug.Conn.t(), create_params()) ::
           {:created, User.t()} | {:error, Ecto.Changeset.t()}
-  def create(_conn, _params), do: {:created, nil}
+  def create(_conn, %{name: name} = params) do
+    {:created, %User{id: Ecto.UUID.generate(), name: name, email: params[:email], role: :member}}
+  end
 
   @doc "Updates a user."
   @spec update(Plug.Conn.t(), update_params()) ::
@@ -84,11 +94,20 @@ defmodule Portolan.Test.UserController do
 
   @doc "Exports users the classic way."
   @spec export(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def export(conn, _params), do: conn
+  def export(conn, params), do: send_resp(conn, 200, "exported #{inspect(params)}")
 
   @doc false
-  @spec internal(Plug.Conn.t(), map()) :: Plug.Conn.t()
-  def internal(conn, _params), do: conn
+  @spec internal(Plug.Conn.t(), map()) :: {:ok, map()}
+  def internal(_conn, params), do: {:ok, params}
+
+  @doc false
+  @spec users() :: [User.t()]
+  def users do
+    [
+      %User{id: "6f1c2a7e-3b4d-4e5f-8a9b-0c1d2e3f4a5b", name: "Ada", role: :admin},
+      %User{id: "0b5e7c1d-2a3f-4b6c-9d8e-7f6a5b4c3d2e", name: "Grace", role: :member}
+    ]
+  end
 end
 
 defmodule Portolan.Test.PageController do
@@ -113,8 +132,8 @@ defmodule Portolan.Test.Router do
   get "/", PageController, :home
 
   scope "/api" do
-    resources "/users", UserController, only: [:index, :show, :create, :update, :delete]
     get "/users/export", UserController, :export
+    resources "/users", UserController, only: [:index, :show, :create, :update, :delete]
     get "/internal", UserController, :internal
   end
 end

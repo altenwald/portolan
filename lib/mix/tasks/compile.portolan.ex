@@ -33,6 +33,10 @@ defmodule Mix.Tasks.Compile.Portolan do
   * `:output` - where the document is written, by default
     `"priv/static/openapi.json"`
 
+  The contracts used at runtime to cast the parameters are written to
+  `priv/portolan/contracts.etf`. It is generated on every compilation, so it
+  can be ignored by version control.
+
   Every problem found is reported as a compiler diagnostic. Errors stop
   the compilation. Warnings do too when compiling with
   `--warnings-as-errors`.
@@ -41,6 +45,7 @@ defmodule Mix.Tasks.Compile.Portolan do
   use Mix.Task.Compiler
 
   alias Mix.Task.Compiler.Diagnostic
+  alias Portolan.Contracts
   alias Portolan.Issue
 
   @default_output "priv/static/openapi.json"
@@ -74,9 +79,13 @@ defmodule Mix.Tasks.Compile.Portolan do
       end
 
     case result do
-      {:ok, document, warnings} ->
+      {:ok, %{document: document, contracts: contracts}, warnings} ->
         diagnostics = report(warnings)
         status = write(output, Portolan.OpenAPI.encode(document))
+        Contracts.save(contracts, Contracts.relative_path())
+        # A running application, as with the Phoenix code reloader, reads
+        # the new contracts on its next request.
+        Contracts.forget(project[:app])
 
         if warnings != [] and opts[:warnings_as_errors],
           do: {:error, diagnostics},

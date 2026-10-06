@@ -12,11 +12,14 @@ defmodule Portolan.Compiler do
      documented with its `@typedoc` (see `Portolan.FieldDocs`)
   5. the Markdown pages are read
   6. the document is built with `Portolan.OpenAPI`
+  7. the contracts used at runtime to cast parameters are built with the
+     same information, see `Portolan.Contracts`
 
   All the issues found are returned together.
   """
 
   alias Portolan.Action
+  alias Portolan.Contracts
   alias Portolan.Docs
   alias Portolan.FieldDocs
   alias Portolan.Issue
@@ -71,18 +74,25 @@ defmodule Portolan.Compiler do
           | {:openapi, OpenAPI.version()}
           | {:pages, [Path.t()]}
 
-  @doc """
-  Builds the OpenAPI document of `router`.
+  @typedoc """
+  The result of a build.
 
-  Returns the document with the warnings found, or every issue found when
-  there are errors.
+  * `document` - the OpenAPI document, see `Portolan.OpenAPI.encode/1`
+  * `contracts` - the contracts of the documented actions
   """
-  @spec build(module(), [option()]) ::
-          {:ok, Portolan.JSONSchema.t(), [Issue.t()]} | {:error, [Issue.t()]}
+  @type result :: %{document: Portolan.JSONSchema.t(), contracts: Contracts.t()}
+
+  @doc """
+  Builds the OpenAPI document and the contracts of `router`.
+
+  Returns them with the warnings found, or every issue found when there
+  are errors.
+  """
+  @spec build(module(), [option()]) :: {:ok, result(), [Issue.t()]} | {:error, [Issue.t()]}
   def build(router, opts) do
     with :ok <- check_version(opts),
          {:ok, router_docs} <- router_docs(router) do
-      {operations, tags, operation_issues} = operations(router)
+      {operations, actions, tags, operation_issues} = operations(router)
       {schemas, schema_issues} = schemas(operations)
       {pages, page_issues} = pages(Keyword.get(opts, :pages, []))
 
@@ -100,7 +110,7 @@ defmodule Portolan.Compiler do
 
       if Enum.any?(issues, &(&1.severity == :error)),
         do: {:error, issues},
-        else: {:ok, OpenAPI.build(spec), issues}
+        else: {:ok, %{document: OpenAPI.build(spec), contracts: contracts(actions)}, issues}
     end
   end
 
@@ -143,8 +153,10 @@ defmodule Portolan.Compiler do
       |> Enum.map(&operation(&1, Map.fetch!(controllers, &1.plug)))
       |> Enum.reduce({[], controller_issues}, fn
         {nil, issues}, {operations, all} -> {operations, all ++ issues}
-        {operation, issues}, {operations, all} -> {[operation | operations], all ++ issues}
+        {built, issues}, {operations, all} -> {[built | operations], all ++ issues}
       end)
+
+    {operations, actions} = operations |> Enum.reverse() |> Enum.unzip()
 
     tags =
       routes
@@ -153,7 +165,7 @@ defmodule Portolan.Compiler do
       |> Enum.filter(&Map.has_key?(controllers, &1))
       |> Enum.map(&tag(&1, Map.fetch!(controllers, &1)))
 
-    {operations |> Enum.reverse() |> unique_ids(), tags, issues}
+    {unique_ids(operations), actions, tags, issues}
   end
 
   defp controllers(routes) do
@@ -206,7 +218,7 @@ defmodule Portolan.Compiler do
 
         case parameters(action, route.verb, path_names) do
           {:ok, parameters, body} ->
-            {build_operation(route, action, path, parameters, body), warnings}
+            {{build_operation(route, action, path, parameters, body), action}, warnings}
 
           {:error, issues} ->
             {nil, warnings ++ Issue.put_file(issues, action.file)}
@@ -528,6 +540,30 @@ defmodule Portolan.Compiler do
   defp fields_refs(fields, additional) do
     Enum.flat_map(fields, fn {_name, _required, type} -> refs(type) end) ++
       if(additional, do: refs(additional), else: [])
+  end
+
+  # Contracts
+
+  defp contracts(actions) do
+    params = Enum.reject(Enum.map(actions, & &1.params), &(&1 == :undocumented))
+
+    %Contracts{
+      actions: Map.new(actions, &{{&1.module, &1.name}, &1.params}),
+      types: resolve_types(Enum.flat_map(params, &refs/1), %{}),
+      md5: Map.new(actions, &{&1.module, &1.module.module_info(:md5)})
+    }
+  end
+
+  # Every type was already fetched and checked while building the document.
+  defp resolve_types([], types), do: types
+
+  defp resolve_types([{module, name, args} = ref | rest], types) do
+    if Map.has_key?(types, ref) do
+      resolve_types(rest, types)
+    else
+      {:ok, type} = Typespec.fetch(module, name, args)
+      resolve_types(refs(type) ++ rest, Map.put(types, ref, type))
+    end
   end
 
   # Pages

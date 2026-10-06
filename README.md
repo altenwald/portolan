@@ -21,9 +21,8 @@ needed for the document is missing, such as an action without `@spec` or a
 type that cannot be represented in JSON, the build fails with a compiler
 diagnostic pointing to the exact file and line.
 
-> **Status:** under active development. The OpenAPI document is generated
-> at compile time. Casting the parameters at runtime and serving a
-> documentation UI are being built. The API may change before 1.0.
+> **Status:** under active development. Serving a documentation UI is
+> being built. The API may change before 1.0.
 
 ## How it looks
 
@@ -56,10 +55,12 @@ end
 
 From this Portolan knows that `GET /users/{id}` takes a UUID in the path
 and an optional `include` query parameter, that it answers `200` with a
-`MyApp.User` or `404`, and how to describe all of it. The same description
-will be used to cast the incoming parameters, so `params` arrives with atom
-keys and typed values, and the documentation can never disagree with the
-validation.
+`MyApp.User` or `404`, and how to describe all of it.
+
+The same description is used at runtime: `params` arrives with atom keys
+and typed values, invalid parameters are answered with `422` before the
+action runs, and the action returns its result instead of building the
+response. The documentation can never disagree with the validation.
 
 ## Setup
 
@@ -82,10 +83,21 @@ config :my_app, Portolan,
   pages: ["docs/authentication.md"]
 ```
 
-And add `use Portolan.Controller` to every controller of the API. Other
-controllers, such as the ones rendering HTML, are left out of the document.
+And add `use Portolan.Controller`, after `use Phoenix.Controller`, to every
+controller of the API. Other controllers, such as the ones rendering HTML,
+are left out of the document.
 
-The document is written to `priv/static/openapi.json` on every compilation.
+In development, add `:portolan` to the reloadable compilers of the
+endpoint, so the code reloader keeps everything up to date:
+
+```elixir
+config :my_app, MyAppWeb.Endpoint,
+  reloadable_compilers: [:elixir, :app, :portolan]
+```
+
+The document is written to `priv/static/openapi.json` on every compilation,
+and the contracts used to cast parameters at runtime to
+`priv/portolan/contracts.etf`, which can be ignored by version control.
 See `Mix.Tasks.Compile.Portolan` for all the options, including the OpenAPI
 version (`"3.1"` by default, or `"3.2"`).
 
@@ -125,7 +137,8 @@ documenting a field that does not exist is an error.
 | `{:error, Ecto.Changeset.t()}` | `422` with the validation errors             |
 
 Statuses are the atoms known by `Plug.Conn.Status`. Actions with documented
-parameters also answer `422` when the parameters are not valid.
+parameters also answer `422` when the parameters are not valid. See
+`Portolan.Response` for the bodies of errors.
 
 Actions written the classic way, receiving `map()` or returning
 `Plug.Conn.t()`, keep working, but Portolan cannot know what they receive
@@ -186,8 +199,10 @@ def deps do
 end
 ```
 
-`Decimal.t()` support requires the optional
-[`decimal`](https://hex.pm/packages/decimal) dependency.
+`Decimal.t()` parameters require the optional
+[`decimal`](https://hex.pm/packages/decimal) dependency, and
+`{:error, Ecto.Changeset.t()}` results the optional
+[`ecto`](https://hex.pm/packages/ecto) one.
 
 ## License
 

@@ -17,5 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Mix.Tasks.Compile.Portolan` generates the OpenAPI 3.1 or 3.2 document of
   a Phoenix router, reporting missing or invalid information as compiler
   diagnostics.
-- `Portolan.Controller` adds a controller to the documented API.
+- `Portolan.Controller` adds a controller to the documented API, casts the
+  parameters of its actions and renders their results.
+- `Portolan.Contracts` keeps the parameter types needed at runtime in
+  `priv/portolan/contracts.etf`.
+- `Portolan.Response` turns `{:ok, data}`, `{status, data}`, statuses,
+  `{:error, reason}` and changesets into responses.
 - Markdown files can be added to the document as documentation pages.

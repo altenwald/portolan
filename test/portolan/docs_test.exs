@@ -7,6 +7,8 @@ defmodule Portolan.DocsTest do
   alias Portolan.Test.User
   alias Portolan.Test.UserController
 
+  import Portolan.Test.Source, only: [line: 1]
+
   doctest Portolan.Docs
 
   describe "fetch/1" do
@@ -16,15 +18,15 @@ defmodule Portolan.DocsTest do
       assert docs.moduledoc.text ==
                "Users of the application.\n\nUsers can be listed, created and removed.\n"
 
-      assert docs.moduledoc.line == 26
+      assert docs.moduledoc.line == line("defmodule Portolan.Test.UserController")
       assert docs.file =~ "test/support/api.ex"
     end
 
     test "reads function documentation with the line of the definition" do
       {:ok, docs} = Docs.fetch(UserController)
 
-      assert %Docs.Entry{text: "Fetches a user.", line: 68, deprecated: nil} =
-               docs.functions[{:show, 2}]
+      assert %Docs.Entry{text: "Fetches a user.", deprecated: nil} = docs.functions[{:show, 2}]
+      assert docs.functions[{:show, 2}].line == line("def show(_conn, %{id: id})")
 
       assert docs.functions[{:delete, 2}].deprecated == "Users are deactivated instead"
       assert docs.functions[{:internal, 2}].text == :hidden
@@ -38,7 +40,7 @@ defmodule Portolan.DocsTest do
     test "reads type documentation" do
       {:ok, docs} = Docs.fetch(User)
       assert docs.types[{:role, 0}].text == "What a user is allowed to do."
-      assert docs.types[{:role, 0}].line == 19
+      assert docs.types[{:role, 0}].line == line("@type role ::")
       assert docs.types[{:legacy_role, 0}].deprecated == "Use role/0"
     end
 

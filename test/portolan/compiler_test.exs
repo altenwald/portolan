@@ -6,11 +6,14 @@ defmodule Portolan.CompilerTest do
   alias Portolan.Test.BrokenRouter
   alias Portolan.Test.EdgeRouter
   alias Portolan.Test.Router
+  alias Portolan.Test.UserController
 
   @opts [title: "Test API", version: "1.2.3"]
 
   defp build!(opts \\ []) do
-    assert {:ok, document, warnings} = Compiler.build(Router, Keyword.merge(@opts, opts))
+    assert {:ok, %{document: document}, warnings} =
+             Compiler.build(Router, Keyword.merge(@opts, opts))
+
     {document, warnings}
   end
 
@@ -187,9 +190,33 @@ defmodule Portolan.CompilerTest do
     end
   end
 
+  describe "build/2 contracts" do
+    test "keep the parameters of documented actions with their types resolved" do
+      assert {:ok, %{contracts: contracts}, _warnings} = Compiler.build(Router, @opts)
+
+      assert contracts.actions[{UserController, :show}] ==
+               {:ref, UserController, :show_params, []}
+
+      assert contracts.actions[{UserController, :export}] == :undocumented
+      refute Map.has_key?(contracts.actions, {UserController, :internal})
+
+      assert contracts.types[{UserController, :index_params, []}] ==
+               {:map,
+                [
+                  {:role, false, {:ref, Portolan.Test.User, :role, []}},
+                  {:page, false, {:integer, 1, nil}}
+                ], nil}
+
+      assert contracts.types[{Portolan.Test.User, :role, []}] ==
+               {:union, [{:literal, :admin}, {:literal, :member}]}
+
+      assert contracts.md5 == %{UserController => UserController.module_info(:md5)}
+    end
+  end
+
   describe "build/2 edge cases" do
     setup do
-      assert {:ok, document, warnings} = Compiler.build(EdgeRouter, @opts)
+      assert {:ok, %{document: document}, warnings} = Compiler.build(EdgeRouter, @opts)
       %{paths: document["paths"], schemas: document["components"]["schemas"], warnings: warnings}
     end
 
