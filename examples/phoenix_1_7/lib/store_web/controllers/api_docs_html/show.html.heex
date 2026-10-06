@@ -1,0 +1,26 @@
+<div class="mb-6 flex items-center justify-between">
+  <h1 class="text-2xl font-semibold">Store API</h1>
+  <.link href={~p"/api-docs/openapi.json"} class="text-sm font-semibold underline">
+    Download the OpenAPI document
+  </.link>
+</div>
+
+<%!-- Any id but "api-reference", which Scalar mounts on its own, without configuration. --%>
+<div id="api-docs" data-document={~p"/openapi.json"} data-options={JSON.encode!(@scalar_config)}>
+</div>
+
+<script
+  :for={asset <- @scalar_assets}
+  src={asset.url}
+  integrity={asset.integrity}
+  crossorigin="anonymous"
+>
+</script>
+<script>
+  const docs = document.getElementById("api-docs");
+
+  Scalar.createApiReference("#api-docs", {
+    ...JSON.parse(docs.dataset.options),
+    url: docs.dataset.document
+  });
+</script>

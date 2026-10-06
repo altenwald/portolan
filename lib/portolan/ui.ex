@@ -136,6 +136,30 @@ defmodule Portolan.UI do
   end
 
   @doc """
+  The configuration given to Scalar, besides the URL of the document.
+
+  Telemetry and the AI features of Scalar are disabled, as they send data
+  to the services of Scalar. Developer tools are shown only on localhost,
+  and the document can be downloaded as JSON, as it is generated.
+
+  ## Examples
+
+      iex> Portolan.UI.scalar_config()["telemetry"]
+      false
+
+  """
+  @spec scalar_config() :: %{String.t() => term()}
+  def scalar_config do
+    %{
+      "telemetry" => false,
+      "agent" => %{"disabled" => true},
+      "mcp" => %{"disabled" => true},
+      "showDeveloperTools" => "localhost",
+      "documentDownloadType" => "json"
+    }
+  end
+
+  @doc """
   Lists the files of the interface `ui` that are not installed in `dir`.
   """
   @spec missing(ui(), Path.t()) :: [String.t()]
@@ -207,7 +231,8 @@ defmodule Portolan.UI do
   defp element(:scalar), do: "app"
   defp element(:swagger_ui), do: "swagger-ui"
 
-  defp init(:scalar, url), do: ~s[Scalar.createApiReference("#app", #{js(%{"url" => url})})]
+  defp init(:scalar, url),
+    do: ~s[Scalar.createApiReference("#app", #{js(Map.put(scalar_config(), "url", url))})]
 
   defp init(:swagger_ui, url),
     do: "SwaggerUIBundle(#{js(%{"dom_id" => "#swagger-ui", "url" => url})})"

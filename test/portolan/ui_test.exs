@@ -19,7 +19,9 @@ defmodule Portolan.UITest do
     end
 
     test "points to the document", %{html: html} do
-      assert html =~ ~s[Scalar.createApiReference("#app", {"url":"openapi.json"})]
+      assert html =~ ~s[Scalar.createApiReference("#app", {"agent":{"disabled":true},]
+      assert html =~ ~s("telemetry":false)
+      assert html =~ ~s("url":"openapi.json")
     end
 
     test "is a complete page", %{html: html} do

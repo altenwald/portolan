@@ -1,0 +1,234 @@
+{
+  "components": {
+    "schemas": {
+      "Portolan.Error": {
+        "description": "An error.",
+        "properties": {
+          "errors": {
+            "properties": {
+              "detail": { "type": "string" }
+            },
+            "required": [
+              "detail"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "errors"
+        ],
+        "type": "object"
+      },
+      "Portolan.ValidationError": {
+        "description": "The request is not valid. Errors are listed by field.",
+        "properties": {
+          "errors": {
+            "additionalProperties": {
+              "items": { "type": "string" },
+              "type": "array"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "errors"
+        ],
+        "type": "object"
+      },
+      "Store.Catalog.Product": {
+        "description": "A product of the catalog.",
+        "properties": {
+          "id": {
+            "description": "unique identifier",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "description": "the name shown to customers",
+            "type": "string"
+          },
+          "price_cents": {
+            "description": "the price, in cents",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Store.Catalog.Product.status",
+            "description": "whether the product can be sold"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "price_cents",
+          "status"
+        ],
+        "type": "object"
+      },
+      "Store.Catalog.Product.status": {
+        "description": "Whether a product can be sold.",
+        "enum": [
+          "available",
+          "sold_out"
+        ]
+      }
+    }
+  },
+  "info": {
+    "description": "The Store API.\n\nAn example of Portolan in a Phoenix 1.7 application.\n",
+    "title": "Store",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.1",
+  "paths": {
+    "/api/products": {
+      "get": {
+        "description": "Products can be filtered by status.",
+        "operationId": "ProductController.index",
+        "parameters": [
+          {
+            "description": "only products with this status",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/Store.Catalog.Product.status" }
+          },
+          {
+            "description": "only products up to this price",
+            "in": "query",
+            "name": "max_price_cents",
+            "required": false,
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/Store.Catalog.Product" },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Lists products.",
+        "tags": [
+          "Product"
+        ]
+      },
+      "post": {
+        "operationId": "ProductController.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": { "type": "string" },
+                  "price_cents": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "name",
+                  "price_cents"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Store.Catalog.Product" }
+              }
+            },
+            "description": "Created"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Creates a product.",
+        "tags": [
+          "Product"
+        ]
+      }
+    },
+    "/api/products/{id}": {
+      "get": {
+        "operationId": "ProductController.show",
+        "parameters": [
+          {
+            "description": "the product identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Store.Catalog.Product" }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.Error" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Fetches a product.",
+        "tags": [
+          "Product"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Products of the catalog.",
+      "name": "Product"
+    }
+  ]
+}

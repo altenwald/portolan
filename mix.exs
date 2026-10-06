@@ -63,7 +63,14 @@ defmodule Portolan.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "CHANGELOG.md", "LICENSE"],
+      extras: [
+        "README.md",
+        "guides/getting-started.md",
+        "guides/embedding-scalar.md",
+        "CHANGELOG.md",
+        "LICENSE"
+      ],
+      groups_for_extras: [Guides: ~r{guides/}],
       groups_for_modules: [
         "Phoenix integration": [Portolan.Controller, Portolan.Response, Portolan.Contracts],
         Compiler: [

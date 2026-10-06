@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-for example in minimal with_ecto with_decimal; do
+for example in minimal with_ecto with_decimal phoenix_1_7; do
   echo "==> $example"
   (
     cd "$example"

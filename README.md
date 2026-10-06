@@ -63,6 +63,11 @@ response. The documentation can never disagree with the validation.
 
 ## Setup
 
+The [getting started guide](guides/getting-started.md) goes through every
+step in a Phoenix 1.7 or 1.8 application, and the
+[embedding guide](guides/embedding-scalar.md) shows the documentation
+inside a page of your application. In short:
+
 Add the Portolan compiler after the default ones in `mix.exs`:
 
 ```elixir

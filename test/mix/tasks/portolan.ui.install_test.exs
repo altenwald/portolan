@@ -16,6 +16,18 @@ defmodule Mix.Tasks.Portolan.Ui.InstallTest do
     assert_raise Mix.Error, ~r/ui: false/, fn -> Install.run([]) end
   end
 
+  test "unknown interfaces" do
+    assert_raise Mix.Error, ~r/Unknown interface "redoc"/, fn -> Install.run(["redoc"]) end
+    assert_raise Mix.Error, ~r/Usage/, fn -> Install.run(["scalar", "swagger_ui"]) end
+  end
+
+  @tag :external
+  test "installs the interface given as argument", %{tmp_dir: tmp_dir} do
+    Application.put_env(:portolan, Portolan, ui: false, ui_output: Path.join(tmp_dir, "x.html"))
+    Install.run(["scalar"])
+    assert File.ls!(Path.join(tmp_dir, "portolan")) == ["scalar-1.73.0.js"]
+  end
+
   @tag :external
   test "installs the configured interface next to it", %{tmp_dir: tmp_dir} do
     ui_output = Path.join(tmp_dir, "docs/index.html")

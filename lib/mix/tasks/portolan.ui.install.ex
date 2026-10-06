@@ -6,9 +6,13 @@ defmodule Mix.Tasks.Portolan.Ui.Install do
   is served by the application instead of loaded from the CDN.
 
       mix portolan.ui.install
+      mix portolan.ui.install scalar
 
-  The interface is the one configured with the `:ui` option of Portolan,
-  see `Mix.Tasks.Compile.Portolan`. Its files are downloaded from the CDN,
+  The interface is the one given as argument, `scalar` or `swagger_ui`, or
+  the one configured with the `:ui` option of Portolan, see
+  `Mix.Tasks.Compile.Portolan`. Giving it is useful to embed the interface
+  in a page of your own with `ui: false`, see the
+  [embedding guide](embedding-scalar.html). Its files are downloaded from the CDN,
   checked against the integrity Portolan was released with, and saved in a
   `portolan` directory next to the interface page, by default
   `priv/static/portolan`. Files of other versions are removed.
@@ -32,20 +36,34 @@ defmodule Mix.Tasks.Portolan.Ui.Install do
   @compile {:no_warn_undefined, [:httpc, :public_key]}
 
   @impl Mix.Task
-  def run(_args) do
+  def run(args) do
     Mix.Task.run("loadconfig")
     config = Application.get_env(Mix.Project.config()[:app], Portolan, [])
 
-    case Keyword.get(config, :ui, :scalar) do
+    case ui(args, config) do
       false ->
         Mix.raise(
-          "The documentation interface is disabled with ui: false, there is nothing to install"
+          "The documentation interface is disabled with ui: false, " <>
+            "give the interface to install: mix portolan.ui.install scalar"
         )
 
       ui ->
         install(ui, Compiler.assets_dir(config))
     end
   end
+
+  defp ui([], config), do: Keyword.get(config, :ui, :scalar)
+
+  defp ui([name], _config) do
+    case Enum.find(Portolan.UI.uis(), &(Atom.to_string(&1) == name)) do
+      nil -> Mix.raise("Unknown interface #{inspect(name)}, use one of: #{uis()}")
+      ui -> ui
+    end
+  end
+
+  defp ui(_args, _config), do: Mix.raise("Usage: mix portolan.ui.install [#{uis()}]")
+
+  defp uis, do: Enum.map_join(Portolan.UI.uis(), ", ", &Atom.to_string/1)
 
   defp install(ui, dir) do
     Mix.ensure_application!(:inets)

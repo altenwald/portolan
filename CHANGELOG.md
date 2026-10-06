@@ -29,3 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   integrity.
 - `mix portolan.ui.install` installs a verified local copy of the interface,
   used with `ui_assets: :local`.
+- The Scalar page disables the telemetry and AI features of Scalar, see
+  `Portolan.UI.scalar_config/0`.
+- Guides to get started and to embed Scalar in a Phoenix page.
