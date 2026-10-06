@@ -1,0 +1,4 @@
+/_build/
+/deps/
+/priv/portolan/
+erl_crash.dump

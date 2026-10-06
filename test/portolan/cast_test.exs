@@ -52,6 +52,10 @@ defmodule Portolan.CastTest do
       assert ok({:string, :decimal}, 2) == {:ok, Decimal.new(2)}
       assert error({:string, :decimal}, "abc") == [{[], "must be a decimal number"}]
     end
+
+    test "decimals with huge exponents are rejected (CVE-2026-32686)" do
+      assert error({:string, :decimal}, "1e1000000000") == [{[], "must be a decimal number"}]
+    end
   end
 
   describe "numbers" do

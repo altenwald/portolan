@@ -35,7 +35,7 @@ defmodule Portolan.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.7"},
-      {:decimal, "~> 2.0 or ~> 3.0", optional: true},
+      {:decimal, "~> 3.0", optional: true},
       {:ecto, "~> 3.10", optional: true},
       {:ex_check, "~> 0.17", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

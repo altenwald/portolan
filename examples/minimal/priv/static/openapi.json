@@ -1,0 +1,275 @@
+{
+  "components": {
+    "schemas": {
+      "Minimal.Note": {
+        "description": "A note.",
+        "properties": {
+          "body": {
+            "description": "the content, in Markdown",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "unique identifier",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pinned": {
+            "description": "whether the note is listed first",
+            "type": "boolean"
+          },
+          "tags": {
+            "description": "labels to find the note",
+            "items": { "type": "string" },
+            "type": "array"
+          },
+          "title": {
+            "description": "a short title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "body",
+          "tags",
+          "pinned"
+        ],
+        "type": "object"
+      },
+      "Portolan.Error": {
+        "description": "An error.",
+        "properties": {
+          "errors": {
+            "properties": {
+              "detail": { "type": "string" }
+            },
+            "required": [
+              "detail"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "errors"
+        ],
+        "type": "object"
+      },
+      "Portolan.ValidationError": {
+        "description": "The request is not valid. Errors are listed by field.",
+        "properties": {
+          "errors": {
+            "additionalProperties": {
+              "items": { "type": "string" },
+              "type": "array"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "errors"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "A notes API.\n\nThe smallest Phoenix application using Portolan: no Ecto and no Decimal.\n",
+    "title": "Minimal",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.1",
+  "paths": {
+    "/api/notes": {
+      "get": {
+        "description": "Pinned notes come first.",
+        "operationId": "NoteController.index",
+        "parameters": [
+          {
+            "description": "only notes with this tag",
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "description": "only pinned, or not pinned, notes",
+            "in": "query",
+            "name": "pinned",
+            "required": false,
+            "schema": { "type": "boolean" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/Minimal.Note" },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Lists notes.",
+        "tags": [
+          "Note"
+        ]
+      },
+      "post": {
+        "operationId": "NoteController.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "body": { "type": "string" },
+                  "pinned": { "type": "boolean" },
+                  "tags": {
+                    "items": { "type": "string" },
+                    "type": "array"
+                  },
+                  "title": { "type": "string" }
+                },
+                "required": [
+                  "title"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Minimal.Note" }
+              }
+            },
+            "description": "Created"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Creates a note.",
+        "tags": [
+          "Note"
+        ]
+      }
+    },
+    "/api/notes/{id}": {
+      "delete": {
+        "operationId": "NoteController.delete",
+        "parameters": [
+          {
+            "description": "the note identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": { "description": "No Content" },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.Error" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Deletes a note.",
+        "tags": [
+          "Note"
+        ]
+      },
+      "get": {
+        "operationId": "NoteController.show",
+        "parameters": [
+          {
+            "description": "the note identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Minimal.Note" }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.Error" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Fetches a note.",
+        "tags": [
+          "Note"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Notes are kept in memory, so they are lost when the application stops.\n\nCreate a note with `POST /api/notes` and list them with `GET /api/notes`.",
+      "name": "Getting started"
+    },
+    {
+      "description": "Notes.\n\nNotes have a title, an optional body and tags.",
+      "name": "Note"
+    }
+  ]
+}

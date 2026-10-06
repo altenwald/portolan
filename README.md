@@ -187,6 +187,12 @@ Types that cannot be represented, such as `term()`, `atom()`, `map()`,
 `pid()` or tuples, are reported as errors. See `Portolan.Type` for the
 complete reference.
 
+## Examples
+
+The [`examples`](https://github.com/altenwald/portolan/tree/main/examples)
+directory has complete Phoenix applications: one with Phoenix only, one
+with Ecto and one with Ecto and Decimal.
+
 ## Installation
 
 Add `portolan` to your list of dependencies in `mix.exs`:
@@ -200,7 +206,9 @@ end
 ```
 
 `Decimal.t()` parameters require the optional
-[`decimal`](https://hex.pm/packages/decimal) dependency, and
+[`decimal`](https://hex.pm/packages/decimal) dependency, version 3.0 or
+later, as earlier ones accept exponents that exhaust the memory
+([CVE-2026-32686](https://osv.dev/vulnerability/EEF-CVE-2026-32686)), and
 `{:error, Ecto.Changeset.t()}` results the optional
 [`ecto`](https://hex.pm/packages/ecto) one.
 

@@ -1,0 +1,345 @@
+{
+  "components": {
+    "schemas": {
+      "Portolan.Error": {
+        "description": "An error.",
+        "properties": {
+          "errors": {
+            "properties": {
+              "detail": { "type": "string" }
+            },
+            "required": [
+              "detail"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "errors"
+        ],
+        "type": "object"
+      },
+      "Portolan.ValidationError": {
+        "description": "The request is not valid. Errors are listed by field.",
+        "properties": {
+          "errors": {
+            "additionalProperties": {
+              "items": { "type": "string" },
+              "type": "array"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "errors"
+        ],
+        "type": "object"
+      },
+      "WithEcto.Accounts.User": {
+        "description": "A user account.",
+        "properties": {
+          "email": {
+            "description": "where the user is contacted",
+            "type": "string"
+          },
+          "id": {
+            "description": "unique identifier",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "the full name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/WithEcto.Accounts.User.role",
+            "description": "what the user is allowed to do"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ],
+        "type": "object"
+      },
+      "WithEcto.Accounts.User.role": {
+        "description": "What a user is allowed to do.",
+        "enum": [
+          "admin",
+          "member"
+        ]
+      }
+    }
+  },
+  "info": {
+    "description": "An accounts API.\n\nUses Ecto schemas and changesets, without a database.\n",
+    "title": "Accounts API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.2.0",
+  "paths": {
+    "/api/users": {
+      "get": {
+        "operationId": "UserController.index",
+        "parameters": [
+          {
+            "description": "only users with this role",
+            "in": "query",
+            "name": "role",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/WithEcto.Accounts.User.role" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/WithEcto.Accounts.User" },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Lists users, sorted by name.",
+        "tags": [
+          "User"
+        ]
+      },
+      "post": {
+        "description": "The email must be valid and the name at least two characters long.",
+        "operationId": "UserController.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "email": { "type": "string" },
+                  "name": { "type": "string" },
+                  "role": { "$ref": "#/components/schemas/WithEcto.Accounts.User.role" }
+                },
+                "required": [
+                  "name",
+                  "email"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WithEcto.Accounts.User" }
+              }
+            },
+            "description": "Created"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Creates a user.",
+        "tags": [
+          "User"
+        ]
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "operationId": "UserController.show",
+        "parameters": [
+          {
+            "description": "the user identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WithEcto.Accounts.User" }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.Error" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Fetches a user.",
+        "tags": [
+          "User"
+        ]
+      },
+      "patch": {
+        "operationId": "UserController.update",
+        "parameters": [
+          {
+            "description": "the user identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "email": { "type": "string" },
+                  "name": { "type": "string" }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WithEcto.Accounts.User" }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.Error" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Updates a user.",
+        "tags": [
+          "User"
+        ]
+      },
+      "put": {
+        "operationId": "UserController.update_put",
+        "parameters": [
+          {
+            "description": "the user identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "email": { "type": "string" },
+                  "name": { "type": "string" }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WithEcto.Accounts.User" }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.Error" }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Updates a user.",
+        "tags": [
+          "User"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Requests are validated twice:\n\n1. the parameters are cast into the types of the action spec, answering\n   `422` when they do not match\n2. the data is validated by an Ecto changeset, answering `422` with the\n   errors of each field",
+      "kind": "nav",
+      "name": "Validation"
+    },
+    {
+      "description": "User accounts.\n\nUsers are validated with an Ecto changeset.",
+      "name": "User",
+      "summary": "User accounts."
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "components": {
+    "schemas": {
+      "Portolan.ValidationError": {
+        "description": "The request is not valid. Errors are listed by field.",
+        "properties": {
+          "errors": {
+            "additionalProperties": {
+              "items": { "type": "string" },
+              "type": "array"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "errors"
+        ],
+        "type": "object"
+      },
+      "WithDecimal.Catalog.Product": {
+        "description": "A product of the catalog.",
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/WithDecimal.Catalog.Product.currency",
+            "description": "the currency of the price"
+          },
+          "id": {
+            "description": "unique identifier",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "description": "the product name",
+            "type": "string"
+          },
+          "price": {
+            "description": "the price, with the precision it was given",
+            "format": "decimal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "price",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "WithDecimal.Catalog.Product.currency": {
+        "description": "A supported currency.",
+        "enum": [
+          "eur",
+          "usd"
+        ]
+      }
+    }
+  },
+  "info": {
+    "description": "A catalog API.\n\nPrices are decimals, sent and received as strings to keep their\nprecision.\n",
+    "title": "WithDecimal",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.1",
+  "paths": {
+    "/api/products": {
+      "get": {
+        "operationId": "ProductController.index",
+        "parameters": [
+          {
+            "description": "only products up to this price",
+            "in": "query",
+            "name": "max_price",
+            "required": false,
+            "schema": {
+              "format": "decimal",
+              "type": "string"
+            }
+          },
+          {
+            "description": "only products in this currency",
+            "in": "query",
+            "name": "currency",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/WithDecimal.Catalog.Product.currency" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": { "$ref": "#/components/schemas/WithDecimal.Catalog.Product" },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Lists products, cheapest first.",
+        "tags": [
+          "Product"
+        ]
+      },
+      "post": {
+        "operationId": "ProductController.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "currency": { "$ref": "#/components/schemas/WithDecimal.Catalog.Product.currency" },
+                  "name": { "type": "string" },
+                  "price": {
+                    "format": "decimal",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "price",
+                  "currency"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/WithDecimal.Catalog.Product" }
+              }
+            },
+            "description": "Created"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Portolan.ValidationError" }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Adds a product to the catalog.",
+        "tags": [
+          "Product"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Products of the catalog.",
+      "name": "Product"
+    }
+  ]
+}
