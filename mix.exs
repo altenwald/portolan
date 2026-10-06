@@ -16,7 +16,10 @@ defmodule Portolan.MixProject do
       package: package(),
       docs: docs(),
       dialyzer: dialyzer(),
-      test_coverage: [summary: [threshold: 95], ignore_modules: [~r/^Portolan\.Fixtures/]]
+      test_coverage: [
+        summary: [threshold: 95],
+        ignore_modules: [~r/^Portolan\.(Fixtures|Test)\./]
+      ]
     ]
   end
 
@@ -31,6 +34,7 @@ defmodule Portolan.MixProject do
 
   defp deps do
     [
+      {:phoenix, "~> 1.7"},
       {:decimal, "~> 2.0 or ~> 3.0", optional: true},
       {:ex_check, "~> 0.17", only: [:dev, :test], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
@@ -60,6 +64,16 @@ defmodule Portolan.MixProject do
       source_url: @source_url,
       extras: ["README.md", "CHANGELOG.md", "LICENSE"],
       groups_for_modules: [
+        "Phoenix integration": [Portolan.Controller],
+        Compiler: [
+          Portolan.Compiler,
+          Portolan.Action,
+          Portolan.Action.Response,
+          Portolan.Docs,
+          Portolan.Docs.Entry,
+          Portolan.FieldDocs
+        ],
+        "OpenAPI document": [Portolan.OpenAPI, ~r/^Portolan.OpenAPI./],
         "Type conversion": [Portolan.Type, Portolan.Typespec, Portolan.JSONSchema, Portolan.Cast],
         Diagnostics: [Portolan.Issue]
       ]

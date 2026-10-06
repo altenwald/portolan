@@ -29,18 +29,17 @@ defmodule Portolan.Issue do
   @doc """
   Builds an error issue.
 
-  The position accepts the annotations found in Erlang abstract forms:
-  a line, a `{line, column}` tuple or `0` for unknown.
+  The line is `nil` or `0` when unknown.
 
   ## Examples
 
-      iex> Portolan.Issue.error("unsupported type", {12, 5})
+      iex> Portolan.Issue.error("unsupported type", 12)
       %Portolan.Issue{severity: :error, message: "unsupported type", line: 12}
 
   """
-  @spec error(String.t(), :erl_anno.anno() | nil) :: t()
-  def error(message, anno \\ nil) do
-    %__MODULE__{severity: :error, message: message, line: line(anno)}
+  @spec error(String.t(), non_neg_integer() | nil) :: t()
+  def error(message, line \\ nil) do
+    %__MODULE__{severity: :error, message: message, line: line(line)}
   end
 
   @doc """
@@ -52,9 +51,9 @@ defmodule Portolan.Issue do
       %Portolan.Issue{severity: :warning, message: "response is not documented", line: 7}
 
   """
-  @spec warning(String.t(), :erl_anno.anno() | nil) :: t()
-  def warning(message, anno \\ nil) do
-    %__MODULE__{severity: :warning, message: message, line: line(anno)}
+  @spec warning(String.t(), non_neg_integer() | nil) :: t()
+  def warning(message, line \\ nil) do
+    %__MODULE__{severity: :warning, message: message, line: line(line)}
   end
 
   @doc """
@@ -75,12 +74,66 @@ defmodule Portolan.Issue do
     end)
   end
 
-  defp line(nil), do: nil
+  @doc """
+  Sets the file of the issues in an error result.
 
-  defp line(anno) do
-    case :erl_anno.line(anno) do
-      0 -> nil
-      line -> line
+  Other results are returned unchanged.
+
+  ## Examples
+
+      iex> Portolan.Issue.put_file_result({:error, [Portolan.Issue.error("boom")]}, "a.ex")
+      {:error, [%Portolan.Issue{severity: :error, message: "boom", file: "a.ex"}]}
+
+      iex> Portolan.Issue.put_file_result({:ok, 1}, "a.ex")
+      {:ok, 1}
+
+  """
+  @spec put_file_result(result, String.t() | nil) :: result when result: term()
+  def put_file_result({:error, issues}, file) when is_list(issues),
+    do: {:error, put_file(issues, file)}
+
+  def put_file_result({:ok, value, issues}, file) when is_list(issues),
+    do: {:ok, value, put_file(issues, file)}
+
+  def put_file_result(result, _file), do: result
+
+  @doc """
+  Applies `fun` to every element, collecting the issues of all of them.
+
+  `fun` returns `{:ok, value}` or `{:error, issues}`. The result is
+  `{:ok, values}` when every element succeeds, or `{:error, issues}` with
+  the issues of every failing element.
+
+  ## Examples
+
+      iex> Portolan.Issue.collect([1, 2], &{:ok, &1 * 2})
+      {:ok, [2, 4]}
+
+      iex> Portolan.Issue.collect([1, 2, 3], fn
+      ...>   2 -> {:ok, 2}
+      ...>   n -> {:error, [Portolan.Issue.error("bad \#{n}")]}
+      ...> end)
+      {:error, [Portolan.Issue.error("bad 1"), Portolan.Issue.error("bad 3")]}
+
+  """
+  @spec collect([element], (element -> {:ok, value} | {:error, [t()]})) ::
+          {:ok, [value]} | {:error, [t()]}
+        when element: term(), value: term()
+  def collect(elements, fun) do
+    {values, issues} =
+      Enum.reduce(elements, {[], []}, fn element, {values, issues} ->
+        case fun.(element) do
+          {:ok, value} -> {[value | values], issues}
+          {:error, new_issues} -> {values, [new_issues | issues]}
+        end
+      end)
+
+    case issues do
+      [] -> {:ok, Enum.reverse(values)}
+      _issues -> {:error, issues |> Enum.reverse() |> Enum.concat()}
     end
   end
+
+  defp line(0), do: nil
+  defp line(line), do: line
 end

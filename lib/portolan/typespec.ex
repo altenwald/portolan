@@ -207,7 +207,7 @@ defmodule Portolan.Typespec do
   defp convert({:type, anno, :union, forms}, context) do
     context = at(context, anno)
 
-    with {:ok, types} <- collect(forms, &convert(&1, context)) do
+    with {:ok, types} <- Issue.collect(forms, &convert(&1, context)) do
       {:ok, {:union, types}}
     end
   end
@@ -252,7 +252,7 @@ defmodule Portolan.Typespec do
   end
 
   defp ref(module, name, args, context) do
-    with {:ok, args} <- collect(args, &convert(&1, context)) do
+    with {:ok, args} <- Issue.collect(args, &convert(&1, context)) do
       {:ok, {:ref, module, name, args}}
     end
   end
@@ -286,7 +286,7 @@ defmodule Portolan.Typespec do
   end
 
   defp map(fields, context) do
-    with {:ok, fields} <- collect(fields, &map_field(&1, context)) do
+    with {:ok, fields} <- Issue.collect(fields, &map_field(&1, context)) do
       {additional, named} = Enum.split_with(fields, &match?({:additional, _type}, &1))
 
       case additional do
@@ -315,18 +315,6 @@ defmodule Portolan.Typespec do
           {:error, issues} -> {:error, issues}
           {:ok, _type} -> unsupported(key, "this map key", context)
         end
-    end
-  end
-
-  defp collect(forms, fun) do
-    {oks, errors} =
-      forms
-      |> Enum.map(fun)
-      |> Enum.split_with(&match?({:ok, _}, &1))
-
-    case errors do
-      [] -> {:ok, Enum.map(oks, fn {:ok, value} -> value end)}
-      _errors -> {:error, Enum.flat_map(errors, fn {:error, issues} -> issues end)}
     end
   end
 

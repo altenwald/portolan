@@ -21,9 +21,9 @@ needed for the document is missing, such as an action without `@spec` or a
 type that cannot be represented in JSON, the build fails with a compiler
 diagnostic pointing to the exact file and line.
 
-> **Status:** under active development. The type conversion layer is
-> available; the compiler, the controller integration and the documentation
-> UI are being built. The API may change before 1.0.
+> **Status:** under active development. The OpenAPI document is generated
+> at compile time. Casting the parameters at runtime and serving a
+> documentation UI are being built. The API may change before 1.0.
 
 ## How it looks
 
@@ -57,9 +57,97 @@ end
 From this Portolan knows that `GET /users/{id}` takes a UUID in the path
 and an optional `include` query parameter, that it answers `200` with a
 `MyApp.User` or `404`, and how to describe all of it. The same description
-is used to cast the incoming parameters, so `params` arrives with atom keys
-and typed values, and the documentation can never disagree with the
+will be used to cast the incoming parameters, so `params` arrives with atom
+keys and typed values, and the documentation can never disagree with the
 validation.
+
+## Setup
+
+Add the Portolan compiler after the default ones in `mix.exs`:
+
+```elixir
+def project do
+  [
+    compilers: Mix.compilers() ++ [:portolan],
+    # ...
+  ]
+end
+```
+
+Tell it which router describes the API in `config/config.exs`:
+
+```elixir
+config :my_app, Portolan,
+  router: MyAppWeb.Router,
+  pages: ["docs/authentication.md"]
+```
+
+And add `use Portolan.Controller` to every controller of the API. Other
+controllers, such as the ones rendering HTML, are left out of the document.
+
+The document is written to `priv/static/openapi.json` on every compilation.
+See `Mix.Tasks.Compile.Portolan` for all the options, including the OpenAPI
+version (`"3.1"` by default, or `"3.2"`).
+
+## Where the information comes from
+
+| OpenAPI                       | Source                                                    |
+| ----------------------------- | --------------------------------------------------------- |
+| API title and version         | the `:name` and `:version` of the project                 |
+| API description               | the `@moduledoc` of the router                            |
+| Paths and methods             | the routes of the router                                  |
+| Tags                          | the controllers and their `@moduledoc`                    |
+| Summary and description       | the first paragraph and the rest of the action `@doc`     |
+| Deprecated operations         | `@deprecated` or `@doc deprecated: "..."`                 |
+| Parameters and request body   | the second argument of the action `@spec`                 |
+| Responses                     | the return type of the action `@spec`                     |
+| Schemas                       | the referenced `@type`s and their `@typedoc`              |
+| Documentation pages           | the Markdown files in the `:pages` option                 |
+
+### Parameters
+
+The second argument of the spec is a map type. Keys that appear in the
+route path are path parameters. The rest are query parameters for `GET`,
+`HEAD`, `DELETE` and `OPTIONS`, and the JSON body for the other methods.
+
+Fields can be documented in the `@typedoc` with a list where each item
+starts with the field name between backticks. It is optional, but
+documenting a field that does not exist is an error.
+
+### Responses
+
+| Return type                    | Response                                     |
+| ------------------------------ | -------------------------------------------- |
+| `{:ok, data}`                  | `200` with `data`                            |
+| `{:created, data}`             | `201` with `data`, the same for any status   |
+| `:no_content`                  | `204` without body, the same for any status  |
+| `{:error, :not_found}`         | `404` with an error body                     |
+| `{:error, Ecto.Changeset.t()}` | `422` with the validation errors             |
+
+Statuses are the atoms known by `Plug.Conn.Status`. Actions with documented
+parameters also answer `422` when the parameters are not valid.
+
+Actions written the classic way, receiving `map()` or returning
+`Plug.Conn.t()`, keep working, but Portolan cannot know what they receive
+or answer, so they are documented without that information and a warning
+is reported.
+
+## Diagnostics
+
+Anything needed for the document that is missing or cannot be represented
+is reported as a compiler diagnostic, with the file and line to fix:
+
+```text
+error: MyAppWeb.UserController.show/2 needs a @spec to be documented
+  lib/my_app_web/controllers/user_controller.ex:42
+error: term() accepts any value and cannot be documented, use a more specific type
+  lib/my_app/accounts/user.ex:12
+warning: the response of MyAppWeb.PageController.export/2 is not documented, return {:ok, data} or {:error, reason} instead of Plug.Conn.t()
+  lib/my_app_web/controllers/page_controller.ex:30
+```
+
+Errors stop the compilation. Actions and controllers documented with
+`@doc false` or `@moduledoc false` are left out of the document.
 
 ## Types
 
