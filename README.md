@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Portolan Logo" width="160">
+</p>
+
 # Portolan
 
 [![Hex Package](https://img.shields.io/hexpm/v/portolan.svg)](https://hex.pm/packages/portolan)

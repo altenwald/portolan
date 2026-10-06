@@ -54,13 +54,15 @@ defmodule Portolan.MixProject do
     [
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
-      files: ~w(lib mix.exs README* CHANGELOG* LICENSE* .formatter.exs)
+      files: ~w(lib assets mix.exs README* CHANGELOG* LICENSE* .formatter.exs)
     ]
   end
 
   defp docs do
     [
       main: "readme",
+      logo: "assets/logo.png",
+      assets: %{"assets" => "assets"},
       source_ref: "v#{@version}",
       source_url: @source_url,
       extras: [
