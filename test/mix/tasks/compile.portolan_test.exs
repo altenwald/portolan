@@ -40,6 +40,39 @@ defmodule Mix.Tasks.Compile.PortolanTest do
     assert {:noop, _diagnostics} = Task.run([])
   end
 
+  test "writes the Scalar interface next to the document by default", %{output: output} do
+    configure(router: Portolan.Test.Router, output: output, title: "Test")
+    Task.run([])
+
+    html = output |> Path.rootname() |> Kernel.<>(".html") |> File.read!()
+    assert html =~ "<title>Test</title>"
+    assert html =~ "@scalar/api-reference"
+    assert html =~ ~s("url":"openapi.json")
+  end
+
+  test "writes Swagger UI where configured", %{output: output, tmp_dir: tmp_dir} do
+    ui_output = Path.join(tmp_dir, "docs/index.html")
+    configure(router: Portolan.Test.Router, output: output, ui: :swagger_ui, ui_output: ui_output)
+    Task.run([])
+
+    html = File.read!(ui_output)
+    assert html =~ "swagger-ui-dist"
+    assert html =~ ~s("url":"../openapi.json")
+  end
+
+  test "the interface can be disabled", %{output: output} do
+    configure(router: Portolan.Test.Router, output: output, ui: false)
+    assert {:ok, _diagnostics} = Task.run([])
+    refute File.exists?(Path.rootname(output) <> ".html")
+  end
+
+  test "unsupported interfaces", %{output: output} do
+    configure(router: Portolan.Test.Router, output: output, ui: :redoc)
+    assert {:error, [%Diagnostic{message: message}]} = Task.run([])
+    assert message =~ ":redoc"
+    assert message =~ ":swagger_ui"
+  end
+
   test "uses the project name by default", %{output: output} do
     configure(router: Portolan.Test.Router, output: output)
     Task.run([])

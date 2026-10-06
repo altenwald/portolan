@@ -12,6 +12,7 @@ config :with_ecto, Portolan,
   router: WithEctoWeb.Router,
   title: "Accounts API",
   openapi: "3.2",
+  ui: :swagger_ui,
   pages: ["docs/validation.md"]
 
 import_config "#{config_env()}.exs"

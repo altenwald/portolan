@@ -24,3 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Portolan.Response` turns `{:ok, data}`, `{status, data}`, statuses,
   `{:error, reason}` and changesets into responses.
 - Markdown files can be added to the document as documentation pages.
+- `Portolan.UI` generates a static page showing the document with Scalar or
+  Swagger UI, loaded from jsDelivr with pinned versions and subresource
+  integrity.

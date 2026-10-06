@@ -38,4 +38,10 @@ defmodule WithDecimalWeb.ProductControllerTest do
              "description" => "the price, with the precision it was given"
            }
   end
+
+  test "the documentation interface is served" do
+    html = api() |> get("/openapi.html") |> response(200)
+    assert html =~ "@scalar/api-reference"
+    assert html =~ ~s("url":"openapi.json")
+  end
 end

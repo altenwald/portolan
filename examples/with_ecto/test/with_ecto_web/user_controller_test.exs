@@ -55,4 +55,10 @@ defmodule WithEctoWeb.UserControllerTest do
     user = document["components"]["schemas"]["WithEcto.Accounts.User"]
     assert user["properties"]["id"] == %{"type" => "string", "format" => "uuid", "description" => "unique identifier"}
   end
+
+  test "the documentation interface is served" do
+    html = api() |> get("/openapi.html") |> response(200)
+    assert html =~ "swagger-ui-dist"
+    assert html =~ ~s("url":"openapi.json")
+  end
 end

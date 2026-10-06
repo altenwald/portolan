@@ -39,4 +39,10 @@ defmodule MinimalWeb.NoteControllerTest do
     assert Map.keys(document["paths"]) == ["/api/notes", "/api/notes/{id}"]
     assert [%{"name" => "Getting started"}, %{"name" => "Note"}] = document["tags"]
   end
+
+  test "the documentation interface is served" do
+    html = api() |> get("/openapi.html") |> response(200)
+    assert html =~ "@scalar/api-reference"
+    assert html =~ ~s("url":"openapi.json")
+  end
 end

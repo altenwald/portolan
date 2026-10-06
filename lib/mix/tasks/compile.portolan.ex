@@ -32,6 +32,15 @@ defmodule Mix.Tasks.Compile.Portolan do
     must start with a level one heading, used as its title
   * `:output` - where the document is written, by default
     `"priv/static/openapi.json"`
+  * `:ui` - the interface generated to read the document: `:scalar`
+    (default), `:swagger_ui` or `false` for none. See `Portolan.UI`
+  * `:ui_output` - where the interface is written, by default next to the
+    document with the `.html` extension, `"priv/static/openapi.html"`
+
+  The document and the interface are static files. Serve them adding them
+  to the `Plug.Static` of the endpoint, for example:
+
+      plug Plug.Static, at: "/", from: :my_app, only: ~w(assets openapi.json openapi.html)
 
   The contracts used at runtime to cast the parameters are written to
   `priv/portolan/contracts.etf`. It is generated on every compilation, so it
@@ -63,10 +72,18 @@ defmodule Mix.Tasks.Compile.Portolan do
 
   defp compile(config, project, opts) do
     output = Keyword.get(config, :output, @default_output)
+    ui = Keyword.get(config, :ui, :scalar)
 
     result =
-      case Keyword.fetch(config, :router) do
-        {:ok, router} ->
+      case {Keyword.fetch(config, :router), ui in [false | Portolan.UI.uis()]} do
+        {_router, false} ->
+          message =
+            "unsupported :ui #{inspect(ui)}, use one of: " <>
+              Enum.map_join([false | Portolan.UI.uis()], ", ", &inspect/1)
+
+          {:error, [Issue.error(message)]}
+
+        {{:ok, router}, true} ->
           Portolan.Compiler.build(router,
             title: Keyword.get_lazy(config, :title, fn -> title(project) end),
             version: Keyword.get(config, :version, project[:version]),
@@ -74,7 +91,7 @@ defmodule Mix.Tasks.Compile.Portolan do
             pages: Keyword.get(config, :pages, [])
           )
 
-        :error ->
+        {:error, true} ->
           {:error, [Issue.error("the :router option of Portolan is required")]}
       end
 
@@ -82,6 +99,7 @@ defmodule Mix.Tasks.Compile.Portolan do
       {:ok, %{document: document, contracts: contracts}, warnings} ->
         diagnostics = report(warnings)
         status = write(output, Portolan.OpenAPI.encode(document))
+        ui_status = write_ui(ui, config, output, document)
         Contracts.save(contracts, Contracts.relative_path())
         # A running application, as with the Phoenix code reloader, reads
         # the new contracts on its next request.
@@ -89,7 +107,7 @@ defmodule Mix.Tasks.Compile.Portolan do
 
         if warnings != [] and opts[:warnings_as_errors],
           do: {:error, diagnostics},
-          else: {status, diagnostics}
+          else: {if(:ok in [status, ui_status], do: :ok, else: :noop), diagnostics}
 
       {:error, issues} ->
         {:error, report(issues)}
@@ -98,6 +116,14 @@ defmodule Mix.Tasks.Compile.Portolan do
 
   defp title(project) do
     project[:name] || project[:app] |> Atom.to_string() |> Macro.camelize()
+  end
+
+  defp write_ui(false, _config, _output, _document), do: :noop
+
+  defp write_ui(ui, config, output, document) do
+    ui_output = Keyword.get(config, :ui_output, Path.rootname(output) <> ".html")
+    url = Path.relative_to(Path.expand(output), Path.expand(Path.dirname(ui_output)), force: true)
+    write(ui_output, Portolan.UI.render(ui, title: document["info"]["title"], url: url))
   end
 
   defp write(output, content) do

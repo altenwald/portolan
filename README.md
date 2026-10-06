@@ -21,8 +21,7 @@ needed for the document is missing, such as an action without `@spec` or a
 type that cannot be represented in JSON, the build fails with a compiler
 diagnostic pointing to the exact file and line.
 
-> **Status:** under active development. Serving a documentation UI is
-> being built. The API may change before 1.0.
+> **Status:** under active development. The API may change before 1.0.
 
 ## How it looks
 
@@ -94,6 +93,17 @@ endpoint, so the code reloader keeps everything up to date:
 config :my_app, MyAppWeb.Endpoint,
   reloadable_compilers: [:elixir, :app, :portolan]
 ```
+
+Serve the document and its interface, written next to it, with the
+`Plug.Static` of the endpoint:
+
+```elixir
+plug Plug.Static, at: "/", from: :my_app, only: ~w(assets openapi.json openapi.html)
+```
+
+The interface is [Scalar](https://scalar.com) by default, and it can be
+[Swagger UI](https://swagger.io/tools/swagger-ui/) with `ui: :swagger_ui`,
+or none with `ui: false`. See `Portolan.UI`.
 
 The document is written to `priv/static/openapi.json` on every compilation,
 and the contracts used to cast parameters at runtime to

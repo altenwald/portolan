@@ -74,7 +74,7 @@ defmodule Portolan.MixProject do
           Portolan.Docs.Entry,
           Portolan.FieldDocs
         ],
-        "OpenAPI document": [Portolan.OpenAPI, ~r/^Portolan.OpenAPI./],
+        "OpenAPI document": [Portolan.OpenAPI, ~r/^Portolan.OpenAPI./, Portolan.UI],
         "Type conversion": [Portolan.Type, Portolan.Typespec, Portolan.JSONSchema, Portolan.Cast],
         Diagnostics: [Portolan.Issue]
       ]
