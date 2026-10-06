@@ -73,6 +73,31 @@ defmodule Mix.Tasks.Compile.PortolanTest do
     assert message =~ ":swagger_ui"
   end
 
+  test "local assets must be installed", %{output: output} do
+    configure(router: Portolan.Test.Router, output: output, ui: :swagger_ui, ui_assets: :local)
+
+    assert {:error, [%Diagnostic{message: message}]} = Task.run([])
+    assert message =~ "swagger-ui-5.33.1.css, swagger-ui-5.33.1.js"
+    assert message =~ "mix portolan.ui.install"
+  end
+
+  test "installed local assets are used", %{output: output, tmp_dir: tmp_dir} do
+    configure(router: Portolan.Test.Router, output: output, ui_assets: :local)
+    File.mkdir_p!(Path.join(tmp_dir, "portolan"))
+    File.write!(Path.join(tmp_dir, "portolan/scalar-1.73.0.js"), "")
+
+    assert {:ok, _diagnostics} = Task.run([])
+    html = File.read!(Path.join(tmp_dir, "openapi.html"))
+    assert html =~ ~s(src="portolan/scalar-1.73.0.js")
+    refute html =~ "cdn.jsdelivr.net"
+  end
+
+  test "unsupported asset locations", %{output: output} do
+    configure(router: Portolan.Test.Router, output: output, ui_assets: :s3)
+    assert {:error, [%Diagnostic{message: message}]} = Task.run([])
+    assert message =~ ":ui_assets :s3"
+  end
+
   test "uses the project name by default", %{output: output} do
     configure(router: Portolan.Test.Router, output: output)
     Task.run([])

@@ -103,7 +103,11 @@ plug Plug.Static, at: "/", from: :my_app, only: ~w(assets openapi.json openapi.h
 
 The interface is [Scalar](https://scalar.com) by default, and it can be
 [Swagger UI](https://swagger.io/tools/swagger-ui/) with `ui: :swagger_ui`,
-or none with `ui: false`. See `Portolan.UI`.
+or none with `ui: false`. It is loaded from the jsDelivr CDN, with pinned
+versions and subresource integrity. To serve it from the application
+instead, without depending on the CDN, install a copy with
+`mix portolan.ui.install`, commit it, and set `ui_assets: :local`. See
+`Portolan.UI`.
 
 The document is written to `priv/static/openapi.json` on every compilation,
 and the contracts used to cast parameters at runtime to

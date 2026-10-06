@@ -83,7 +83,7 @@ defmodule Portolan.MixProject do
 
   defp dialyzer do
     [
-      plt_add_apps: [:mix, :ex_unit, :decimal, :ecto],
+      plt_add_apps: [:mix, :ex_unit, :decimal, :ecto, :inets, :ssl, :public_key],
       plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
       flags: [:error_handling, :extra_return, :missing_return, :underspecs, :unmatched_returns]
     ]

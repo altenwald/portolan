@@ -2,3 +2,5 @@
 /deps/
 /priv/portolan/
 erl_crash.dump
+# Installed with mix portolan.ui.install. A real project would commit them.
+/priv/static/portolan/

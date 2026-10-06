@@ -6,7 +6,7 @@ memory, so they run without a database.
 | Example                         | Dependencies                  | Shows                                                    |
 | ------------------------------- | ----------------------------- | -------------------------------------------------------- |
 | [`minimal`](minimal)            | Phoenix                       | Portolan without Ecto, Decimal or Jason                  |
-| [`with_ecto`](with_ecto)        | Phoenix, Ecto                 | `Ecto.UUID.t()`, changeset errors and OpenAPI 3.2        |
+| [`with_ecto`](with_ecto)        | Phoenix, Ecto                 | `Ecto.UUID.t()`, changeset errors, OpenAPI 3.2 and a local copy of Swagger UI |
 | [`with_decimal`](with_decimal)  | Phoenix, Ecto, Decimal        | `Decimal.t()` prices sent and received as strings        |
 
 Run any of them with:
@@ -17,7 +17,11 @@ mix deps.get
 mix phx.server
 ```
 
-The OpenAPI document is served at <http://localhost:4000/openapi.json>.
+The OpenAPI document is served at <http://localhost:4000/openapi.json> and
+its interface at <http://localhost:4000/openapi.html>.
+
+`with_ecto` serves its own copy of Swagger UI, so install it first with
+`mix portolan.ui.install`.
 
 `check.sh` builds and tests all of them, checks that `minimal` depends on
 neither Ecto nor Decimal, and runs `minimal` as a release, where typespecs

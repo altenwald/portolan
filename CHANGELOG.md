@@ -27,3 +27,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Portolan.UI` generates a static page showing the document with Scalar or
   Swagger UI, loaded from jsDelivr with pinned versions and subresource
   integrity.
+- `mix portolan.ui.install` installs a verified local copy of the interface,
+  used with `ui_assets: :local`.

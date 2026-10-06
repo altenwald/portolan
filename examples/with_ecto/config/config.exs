@@ -13,6 +13,7 @@ config :with_ecto, Portolan,
   title: "Accounts API",
   openapi: "3.2",
   ui: :swagger_ui,
+  ui_assets: :local,
   pages: ["docs/validation.md"]
 
 import_config "#{config_env()}.exs"

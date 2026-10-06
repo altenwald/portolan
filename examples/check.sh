@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds and tests every example, checking that the optional dependencies
-# of Portolan are really optional.
+# of Portolan are really optional. with_ecto serves a local copy of the
+# documentation interface, installed with mix portolan.ui.install.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -11,6 +12,7 @@ for example in minimal with_ecto with_decimal; do
     cd "$example"
     mix deps.get >/dev/null
     mix hex.audit
+    if [ "$example" = with_ecto ]; then mix portolan.ui.install; fi
     mix compile --warnings-as-errors --force
     mix test --warnings-as-errors
   )

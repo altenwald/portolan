@@ -58,7 +58,10 @@ defmodule WithEctoWeb.UserControllerTest do
 
   test "the documentation interface is served" do
     html = api() |> get("/openapi.html") |> response(200)
-    assert html =~ "swagger-ui-dist"
+    assert html =~ ~s(src="portolan/swagger-ui-5.33.1.js")
     assert html =~ ~s("url":"openapi.json")
+    refute html =~ "cdn.jsdelivr.net"
+
+    assert api() |> get("/portolan/swagger-ui-5.33.1.js") |> response(200) =~ "SwaggerUIBundle"
   end
 end

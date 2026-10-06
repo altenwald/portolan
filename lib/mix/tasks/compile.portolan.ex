@@ -36,6 +36,10 @@ defmodule Mix.Tasks.Compile.Portolan do
     (default), `:swagger_ui` or `false` for none. See `Portolan.UI`
   * `:ui_output` - where the interface is written, by default next to the
     document with the `.html` extension, `"priv/static/openapi.html"`
+  * `:ui_assets` - where the interface is loaded from: `:cdn` (default) or
+    `:local`, to serve a copy installed with `mix portolan.ui.install` in a
+    `portolan` directory next to the interface. Remember to add it to the
+    `Plug.Static` of the endpoint
 
   The document and the interface are static files. Serve them adding them
   to the `Plug.Static` of the endpoint, for example:
@@ -72,34 +76,22 @@ defmodule Mix.Tasks.Compile.Portolan do
 
   defp compile(config, project, opts) do
     output = Keyword.get(config, :output, @default_output)
-    ui = Keyword.get(config, :ui, :scalar)
 
     result =
-      case {Keyword.fetch(config, :router), ui in [false | Portolan.UI.uis()]} do
-        {_router, false} ->
-          message =
-            "unsupported :ui #{inspect(ui)}, use one of: " <>
-              Enum.map_join([false | Portolan.UI.uis()], ", ", &inspect/1)
-
-          {:error, [Issue.error(message)]}
-
-        {{:ok, router}, true} ->
-          Portolan.Compiler.build(router,
-            title: Keyword.get_lazy(config, :title, fn -> title(project) end),
-            version: Keyword.get(config, :version, project[:version]),
-            openapi: Keyword.get(config, :openapi, "3.1"),
-            pages: Keyword.get(config, :pages, [])
-          )
-
-        {:error, true} ->
-          {:error, [Issue.error("the :router option of Portolan is required")]}
+      with {:ok, router} <- check_config(config) do
+        Portolan.Compiler.build(router,
+          title: Keyword.get_lazy(config, :title, fn -> title(project) end),
+          version: Keyword.get(config, :version, project[:version]),
+          openapi: Keyword.get(config, :openapi, "3.1"),
+          pages: Keyword.get(config, :pages, [])
+        )
       end
 
     case result do
       {:ok, %{document: document, contracts: contracts}, warnings} ->
         diagnostics = report(warnings)
         status = write(output, Portolan.OpenAPI.encode(document))
-        ui_status = write_ui(ui, config, output, document)
+        ui_status = write_ui(config, output, document)
         Contracts.save(contracts, Contracts.relative_path())
         # A running application, as with the Phoenix code reloader, reads
         # the new contracts on its next request.
@@ -114,17 +106,82 @@ defmodule Mix.Tasks.Compile.Portolan do
     end
   end
 
+  defp check_config(config) do
+    ui = Keyword.get(config, :ui, :scalar)
+    assets = Keyword.get(config, :ui_assets, :cdn)
+
+    issues =
+      [
+        Keyword.has_key?(config, :router) or "the :router option of Portolan is required",
+        ui in [false | Portolan.UI.uis()] or unsupported(:ui, ui, [false | Portolan.UI.uis()]),
+        assets in [:cdn, :local] or unsupported(:ui_assets, assets, [:cdn, :local]),
+        ui == false or assets != :local or missing_assets(ui, config)
+      ]
+      |> Enum.reject(&(&1 == true))
+      |> Enum.map(&Issue.error/1)
+
+    if issues == [], do: {:ok, Keyword.fetch!(config, :router)}, else: {:error, issues}
+  end
+
+  defp unsupported(option, value, supported) do
+    "unsupported #{inspect(option)} #{inspect(value)}, use one of: " <>
+      Enum.map_join(supported, ", ", &inspect/1)
+  end
+
+  defp missing_assets(ui, config) do
+    case Portolan.UI.missing(ui, assets_dir(config)) do
+      [] ->
+        true
+
+      missing ->
+        "the local files of the interface are missing (#{Enum.join(missing, ", ")}), " <>
+          "run: mix portolan.ui.install"
+    end
+  end
+
+  @doc false
+  @spec ui_output(keyword()) :: Path.t()
+  def ui_output(config) do
+    Keyword.get_lazy(config, :ui_output, fn ->
+      config |> Keyword.get(:output, @default_output) |> Path.rootname() |> Kernel.<>(".html")
+    end)
+  end
+
+  @doc false
+  @spec assets_dir(keyword()) :: Path.t()
+  def assets_dir(config), do: config |> ui_output() |> Path.dirname() |> Path.join("portolan")
+
   defp title(project) do
     project[:name] || project[:app] |> Atom.to_string() |> Macro.camelize()
   end
 
-  defp write_ui(false, _config, _output, _document), do: :noop
+  defp write_ui(config, output, document) do
+    case Keyword.get(config, :ui, :scalar) do
+      false ->
+        :noop
 
-  defp write_ui(ui, config, output, document) do
-    ui_output = Keyword.get(config, :ui_output, Path.rootname(output) <> ".html")
-    url = Path.relative_to(Path.expand(output), Path.expand(Path.dirname(ui_output)), force: true)
-    write(ui_output, Portolan.UI.render(ui, title: document["info"]["title"], url: url))
+      ui ->
+        ui_output = ui_output(config)
+
+        assets =
+          case Keyword.get(config, :ui_assets, :cdn) do
+            :cdn -> :cdn
+            :local -> {:local, "portolan"}
+          end
+
+        page =
+          Portolan.UI.render(ui,
+            title: document["info"]["title"],
+            url: relative(output, Path.dirname(ui_output)),
+            assets: assets
+          )
+
+        write(ui_output, page)
+    end
   end
+
+  defp relative(path, dir),
+    do: Path.relative_to(Path.expand(path), Path.expand(dir), force: true)
 
   defp write(output, content) do
     if File.read(output) == {:ok, content} do
