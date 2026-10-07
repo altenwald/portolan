@@ -160,6 +160,8 @@ documenting a field that does not exist is an error.
 | `{:created, data}`             | `201` with `data`, the same for any status   |
 | `:no_content`                  | `204` without body, the same for any status  |
 | `{:error, :not_found}`         | `404` with an error body                     |
+| `{:error, {:not_found, msg}}`  | the same, with the message `msg`             |
+| `{:ok, Portolan.Text.t()}`     | `200` with plain text, as `text/plain`       |
 | `{:error, Ecto.Changeset.t()}` | `422` with the validation errors             |
 
 Statuses are the atoms known by `Plug.Conn.Status`. Actions with documented

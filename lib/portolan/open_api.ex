@@ -68,11 +68,13 @@ defmodule Portolan.OpenAPI do
     * `status` - the HTTP status code
     * `body` - `{:type, type}` for a body described by a type,
       `{:component, name}` for a body described by a component schema,
-      `{:one_of, bodies}` for alternative bodies, or `nil` for no body
+      `{:one_of, bodies}` for alternative bodies, `:text` for plain text,
+      or `nil` for no body
     """
 
     @typedoc "The body of a response."
-    @type body :: {:type, Type.t()} | {:component, String.t()} | {:one_of, [body()]}
+    @type body ::
+            {:type, Type.t()} | {:component, String.t()} | {:one_of, [body()]} | :text
 
     @typedoc "A response."
     @type t :: %__MODULE__{status: 100..999, body: body() | nil}
@@ -329,15 +331,34 @@ defmodule Portolan.OpenAPI do
     Map.new(responses, fn %Response{status: status, body: body} ->
       response =
         %{"description" => Status.reason_phrase(status)}
-        |> put_present("content", body && json_content(body_schema(body)))
+        |> put_present("content", content(body))
 
       {Integer.to_string(status), response}
     end)
   end
 
+  # Plain text is its own content type, the other bodies are JSON.
+  defp content(nil), do: nil
+  defp content({:one_of, bodies}), do: content(bodies)
+  defp content(body) when not is_list(body), do: content([body])
+
+  defp content(bodies) do
+    {texts, json} = Enum.split_with(bodies, &(&1 == :text))
+
+    json_content =
+      case json do
+        [] -> %{}
+        [body] -> json_content(body_schema(body))
+        bodies -> json_content(%{"oneOf" => Enum.map(bodies, &body_schema/1)})
+      end
+
+    if texts == [],
+      do: json_content,
+      else: Map.put(json_content, "text/plain", %{"schema" => %{"type" => "string"}})
+  end
+
   defp body_schema({:type, type}), do: schema(type)
   defp body_schema({:component, name}), do: component_ref(name)
-  defp body_schema({:one_of, bodies}), do: %{"oneOf" => Enum.map(bodies, &body_schema/1)}
 
   defp json_content(schema), do: %{"application/json" => %{"schema" => schema}}
 

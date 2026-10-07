@@ -32,10 +32,10 @@ defmodule Portolan.Test.ApiErrors do
   import Plug.Conn
 
   @impl true
-  def render_error(conn, status, reason) do
+  def render_error(conn, status, reason, message) do
     conn
     |> put_status(status)
-    |> Phoenix.Controller.json(%{status: "error", reason: Atom.to_string(reason)})
+    |> Phoenix.Controller.json(%{status: "error", reason: message || Atom.to_string(reason)})
   end
 
   @impl true
@@ -94,6 +94,23 @@ defmodule Portolan.Test.AccountController do
   @spec login(Plug.Conn.t(), login_params()) :: {:ok, Token.t()}
   def login(_conn, %{email: email}), do: {:ok, %Token{name: email, secret: "s3cr3t"}}
 
+  @typedoc """
+  The format of an export.
+
+  * `id` - the account
+  * `format` - `json` or `text`
+  """
+  @type export_params :: %{required(:id) => pos_integer(), optional(:format) => :json | :text}
+
+  @doc "Exports an account."
+  @spec export(Plug.Conn.t(), export_params()) ::
+          {:ok, Account.t()} | {:ok, Portolan.Text.t()} | {:error, {:not_found, String.t()}}
+  def export(_conn, %{id: 1, format: :text}),
+    do: {:ok, Portolan.Text.new("email=ada@example.com")}
+
+  def export(_conn, %{id: 1}), do: {:ok, %Account{id: 1, email: "ada@example.com"}}
+  def export(_conn, _params), do: {:error, {:not_found, "Account not found"}}
+
   @doc "Removes an account."
   @doc security: [[bearer: ["admin"]], [api_key: []]]
   @spec delete(Plug.Conn.t(), show_params()) :: :no_content | {:error, Ecto.Changeset.t()}
@@ -129,6 +146,18 @@ defmodule Portolan.Test.AccountRouter do
 
   post "/login", AccountController, :login
   get "/accounts/:id", AccountController, :show
+  get "/accounts/:id/export", AccountController, :export
   delete "/accounts/:id", AccountController, :delete
   get "/echo", RawController, :echo
+end
+
+defmodule Portolan.Test.BadErrorController do
+  @moduledoc "Errors with messages that are not strings."
+  use Phoenix.Controller, formats: [:json]
+  use Portolan.Controller
+
+  @doc "Shows."
+  @spec show(Plug.Conn.t(), %{required(:id) => pos_integer()}) ::
+          {:ok, String.t()} | {:error, {:not_found, integer()}}
+  def show(_conn, _params), do: {:ok, "shown"}
 end

@@ -5,7 +5,8 @@ defmodule Portolan.ErrorRenderer do
 
   Portolan answers errors in two situations:
 
-  * an action returns `{:error, reason}`, rendered with `c:render_error/3`
+  * an action returns `{:error, reason}` or `{:error, {reason, message}}`,
+    rendered with `c:render_error/4`
   * the parameters cannot be cast, or an action returns
     `{:error, Ecto.Changeset.t()}`, rendered with `c:render_validation/2`
 
@@ -19,10 +20,10 @@ defmodule Portolan.ErrorRenderer do
         import Plug.Conn
 
         @impl true
-        def render_error(conn, status, reason) do
+        def render_error(conn, status, reason, message) do
           conn
           |> put_status(status)
-          |> Phoenix.Controller.json(%{status: "error", reason: Atom.to_string(reason)})
+          |> Phoenix.Controller.json(%{status: "error", reason: message || Atom.to_string(reason)})
         end
 
         @impl true
@@ -65,9 +66,15 @@ defmodule Portolan.ErrorRenderer do
 
   @doc """
   Sends the response for `{:error, reason}`, with the `status` of `reason`.
+
+  `message` is the one of `{:error, {reason, message}}`, or `nil`.
   """
-  @callback render_error(conn :: Plug.Conn.t(), status :: 100..999, reason :: atom()) ::
-              Plug.Conn.t()
+  @callback render_error(
+              conn :: Plug.Conn.t(),
+              status :: 100..999,
+              reason :: atom(),
+              message :: String.t() | nil
+            ) :: Plug.Conn.t()
 
   @doc """
   Sends the response for invalid parameters or an invalid changeset.
@@ -83,7 +90,7 @@ defmodule Portolan.ErrorRenderer do
   @callback validation_status() :: 100..999
 
   @doc """
-  The JSON Schema of the body sent by `c:render_error/3`.
+  The JSON Schema of the body sent by `c:render_error/4`.
   """
   @callback error_schema() :: map()
 
@@ -109,7 +116,7 @@ defmodule Portolan.ErrorRenderer do
     Code.ensure_loaded?(module) and
       Enum.all?(
         [
-          render_error: 3,
+          render_error: 4,
           render_validation: 2,
           validation_status: 0,
           error_schema: 0,

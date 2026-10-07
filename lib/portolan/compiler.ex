@@ -500,6 +500,7 @@ defmodule Portolan.Compiler do
   end
 
   defp response_body({:data, type}), do: {:type, type}
+  defp response_body(:text), do: :text
   defp response_body(:error), do: {:component, "Portolan.Error"}
   defp response_body(:validation), do: {:component, "Portolan.ValidationError"}
 

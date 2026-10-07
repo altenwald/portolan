@@ -9,6 +9,8 @@ defmodule Portolan.Response do
   | `status`                        | `status` without body                     |
   | `{:error, Ecto.Changeset.t()}`  | the validation errors, `422` by default   |
   | `{:error, reason}`              | the status of `reason` with an error body |
+  | `{:error, {reason, message}}`   | the same, with `message` in the body      |
+  | `{status, Portolan.Text.t()}`   | `status` with the text as `text/plain`    |
   | `Plug.Conn.t()`                 | the connection, as it is                  |
 
   Statuses are the atoms known by `Plug.Conn.Status`. Data is encoded with
@@ -45,7 +47,18 @@ defmodule Portolan.Response do
     do: renderer.render_validation(conn, changeset_errors(changeset))
 
   def render(conn, {:error, reason}, renderer) when is_atom(reason),
-    do: renderer.render_error(conn, code!(reason, {:error, reason}), reason)
+    do: renderer.render_error(conn, code!(reason, {:error, reason}), reason, nil)
+
+  def render(conn, {:error, {reason, message}} = result, renderer)
+      when is_atom(reason) and is_binary(message),
+      do: renderer.render_error(conn, code!(reason, result), reason, message)
+
+  def render(conn, {status, %Portolan.Text{body: body}} = result, _renderer)
+      when is_atom(status) do
+    conn
+    |> put_resp_content_type("text/plain")
+    |> send_resp(code!(status, result), body)
+  end
 
   def render(conn, {status, data}, _renderer) when is_atom(status) do
     conn

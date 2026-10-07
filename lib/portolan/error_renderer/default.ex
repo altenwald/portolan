@@ -6,6 +6,9 @@ defmodule Portolan.ErrorRenderer.Default do
 
       {"errors": {"detail": "Not Found"}}
 
+  The detail is the message of `{:error, {reason, message}}`, when there
+  is one.
+
   Validation errors answer `422`, listing the messages by field:
 
       {"errors": {"email": ["can't be blank"], "items.1.id": ["must be an integer"]}}
@@ -20,10 +23,10 @@ defmodule Portolan.ErrorRenderer.Default do
   alias Plug.Conn.Status
 
   @impl true
-  def render_error(conn, status, _reason) do
+  def render_error(conn, status, _reason, message) do
     conn
     |> put_status(status)
-    |> Phoenix.Controller.json(%{errors: %{detail: Status.reason_phrase(status)}})
+    |> Phoenix.Controller.json(%{errors: %{detail: message || Status.reason_phrase(status)}})
   end
 
   @impl true

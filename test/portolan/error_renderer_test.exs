@@ -11,6 +11,7 @@ defmodule Portolan.ErrorRendererTest do
 
   doctest Portolan.ErrorRenderer
   doctest Portolan.EncodedFields
+  doctest Portolan.Text
 
   @opts [
     title: "Accounts",
@@ -145,6 +146,58 @@ defmodule Portolan.ErrorRendererTest do
       assert json(request(:post, "/login", %{"email" => "ada@example.com"})) == %{
                "name" => "ada@example.com"
              }
+    end
+  end
+
+  describe "messages and plain text" do
+    test "errors carry their message" do
+      conn = request(:get, "/accounts/3/export")
+      assert conn.status == 404
+      assert json(conn) == %{"errors" => %{"detail" => "Account not found"}}
+
+      use_renderer(ApiErrors)
+
+      assert json(request(:get, "/accounts/3/export")) ==
+               %{"status" => "error", "reason" => "Account not found"}
+    end
+
+    test "text is sent as text/plain" do
+      conn = request(:get, "/accounts/1/export?format=text")
+      assert conn.status == 200
+      assert [content_type] = Plug.Conn.get_resp_header(conn, "content-type")
+      assert content_type =~ "text/plain"
+      assert conn.resp_body == "email=ada@example.com"
+
+      assert json(request(:get, "/accounts/1/export")) == %{
+               "id" => 1,
+               "email" => "ada@example.com"
+             }
+    end
+
+    test "both content types are documented for the status" do
+      {:ok, %{document: document}, _warnings} = Compiler.build(AccountRouter, @opts)
+      responses = document["paths"]["/accounts/{id}/export"]["get"]["responses"]
+
+      assert responses["200"]["content"] == %{
+               "application/json" => %{
+                 "schema" => %{"$ref" => "#/components/schemas/Portolan.Test.Account"}
+               },
+               "text/plain" => %{"schema" => %{"type" => "string"}}
+             }
+
+      assert responses["404"]["content"]["application/json"]["schema"] ==
+               %{"$ref" => "#/components/schemas/Portolan.Error"}
+    end
+
+    test "only strings are messages" do
+      assert {:error, [issue]} =
+               Portolan.Action.fetch(
+                 Portolan.Test.BadErrorController,
+                 :show,
+                 elem(Portolan.Docs.fetch(Portolan.Test.BadErrorController), 1)
+               )
+
+      assert issue.message =~ "{:not_found, String.t()}"
     end
   end
 

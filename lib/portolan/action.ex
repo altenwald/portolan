@@ -13,7 +13,10 @@ defmodule Portolan.Action do
     * `{status, data}` answers `status` with `data`, as in `{:created, data}`
     * `status` answers `status` without a body, as in `:no_content`
     * `{:error, reason}` answers the status of `reason`, as in
-      `{:error, :not_found}`, with an error body
+      `{:error, :not_found}`, with an error body. `{:error, {reason,
+      String.t()}}` adds a message to it, as in
+      `{:error, {:not_found, "Project not found"}}`
+    * `{:ok, Portolan.Text.t()}`, or any status, answers plain text
     * `{:error, Ecto.Changeset.t()}` answers the validation errors, with the
       status of the error renderer, `422` by default, see
       `Portolan.ErrorRenderer`
@@ -37,14 +40,15 @@ defmodule Portolan.Action do
     A response of an action.
 
     * `status` - the HTTP status code
-    * `body` - `{:data, type}` for data, `:error` for an error body,
-      `:validation` for validation errors and `nil` for no body
+    * `body` - `{:data, type}` for data, `:text` for plain text, `:error`
+      for an error body, `:validation` for validation errors and `nil` for
+      no body
     """
 
     @typedoc "A response."
     @type t :: %__MODULE__{
             status: 100..999,
-            body: {:data, Type.t()} | :error | :validation | nil
+            body: {:data, Type.t()} | :text | :error | :validation | nil
           }
 
     @enforce_keys [:status, :body]
@@ -239,13 +243,21 @@ defmodule Portolan.Action do
   end
 
   defp response({:type, _anno, :tuple, [{:atom, _, :error}, reasons]}, context) do
-    Issue.collect(members(reasons), &error_response(&1, context))
+    with {:ok, responses} <- Issue.collect(members(reasons), &error_response(&1, context)) do
+      {:ok, List.flatten(responses)}
+    end
   end
 
   defp response({:type, _anno, :tuple, [{:atom, anno, status}, data]}, context) do
-    with {:ok, code} <- status(status, anno, context),
-         {:ok, type} <- to_type(data, context) do
-      {:ok, [%Response{status: code, body: {:data, type}}]}
+    if remote?(data, Portolan.Text, :t) do
+      with {:ok, code} <- status(status, anno, context) do
+        {:ok, [%Response{status: code, body: :text}]}
+      end
+    else
+      with {:ok, code} <- status(status, anno, context),
+           {:ok, type} <- to_type(data, context) do
+        {:ok, [%Response{status: code, body: {:data, type}}]}
+      end
     end
   end
 
@@ -263,17 +275,33 @@ defmodule Portolan.Action do
     end
   end
 
+  defp error_response({:type, _anno, :tuple, [reasons, message]} = form, context) do
+    if message?(message) do
+      Issue.collect(members(reasons), &error_response(&1, context))
+    else
+      unsupported_error(form, context)
+    end
+  end
+
   defp error_response(form, context) do
     if remote?(form, Ecto.Changeset, :t) do
       {:ok, %Response{status: 422, body: :validation}}
     else
-      message =
-        "unsupported error in #{signature(context.module, context.name)}, " <>
-          "use a status such as :not_found or Ecto.Changeset.t()"
-
-      {:error, [Issue.error(message, line(form, context))]}
+      unsupported_error(form, context)
     end
   end
+
+  defp unsupported_error(form, context) do
+    message =
+      "unsupported error in #{signature(context.module, context.name)}, use a status " <>
+        "such as :not_found, {:not_found, String.t()} or Ecto.Changeset.t()"
+
+    {:error, [Issue.error(message, line(form, context))]}
+  end
+
+  defp message?({:ann_type, _anno, [_var, form]}), do: message?(form)
+  defp message?({:type, _anno, :binary, []}), do: true
+  defp message?(form), do: remote?(form, String, :t)
 
   defp status(status, anno, context) do
     {:ok, Status.code(status)}
@@ -290,10 +318,26 @@ defmodule Portolan.Action do
     responses
     |> Enum.group_by(& &1.status)
     |> Enum.sort()
-    |> Issue.collect(fn {status, group} -> merge_group(status, group, context) end)
+    |> Issue.collect(fn {status, group} -> merge_status(status, group, context) end)
     |> case do
-      {:ok, responses} -> {:ok, responses, []}
+      {:ok, responses} -> {:ok, List.flatten(responses), []}
       error -> error
+    end
+  end
+
+  # Plain text is another content type, so it can share its status with
+  # any other body.
+  defp merge_status(status, group, context) do
+    case Enum.split_with(group, &(&1.body == :text)) do
+      {[], others} ->
+        merge_group(status, others, context)
+
+      {_texts, []} ->
+        {:ok, %Response{status: status, body: :text}}
+
+      {_texts, others} ->
+        with {:ok, merged} <- merge_group(status, others, context),
+             do: {:ok, [merged, %Response{status: status, body: :text}]}
     end
   end
 

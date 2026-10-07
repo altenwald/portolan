@@ -77,6 +77,7 @@ defmodule Portolan.MixProject do
         "Phoenix integration": [
           Portolan.Controller,
           Portolan.Response,
+          Portolan.Text,
           Portolan.ErrorRenderer,
           Portolan.ErrorRenderer.Default,
           Portolan.Security,

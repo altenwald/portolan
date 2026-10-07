@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   errors with a format of your own, its schemas and the status of
   validation errors, both at runtime and in the document.
   `Portolan.ErrorRenderer.Default` keeps the format of Phoenix and `422`.
+- `{:error, {:not_found, "Project not found"}}` sends a message with the
+  error, given to the renderer.
+- `Portolan.Text` answers plain text, documented as `text/plain`, also
+  next to JSON for the same status.
 - Responses sharing a status, such as an error and the validation errors,
   are documented as alternatives with `oneOf`.
 - Struct fields left out of the JSON, as with
