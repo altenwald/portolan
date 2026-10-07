@@ -243,6 +243,13 @@ defmodule Portolan.Compiler do
   end
 
   defp tag_name(controller) do
+    case controller.__portolan__(:tag) do
+      nil -> default_tag(controller)
+      tag -> tag
+    end
+  end
+
+  defp default_tag(controller) do
     controller |> Module.split() |> List.last() |> String.replace_suffix("Controller", "")
   end
 
@@ -294,7 +301,7 @@ defmodule Portolan.Compiler do
     %Operation{
       method: route.verb,
       path: path,
-      operation_id: "#{tag_name(route.plug)}Controller.#{action.name}",
+      operation_id: "#{route.plug |> Module.split() |> List.last()}.#{action.name}",
       tag: tag_name(route.plug),
       summary: action.summary,
       description: action.description,

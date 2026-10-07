@@ -45,5 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Struct fields left out of the JSON, as with
   `@derive {Jason.Encoder, only: [...]}` or `except: [...]`, are left out of
   the document and of the parameters too. See `Portolan.EncodedFields`.
+- `use Portolan.Controller, tag: "Users"` sets the tag of the operations
+  of a controller.
 - `use Portolan.Controller, cast: false` validates the parameters but gives
   them to the actions as Phoenix does, with string keys.

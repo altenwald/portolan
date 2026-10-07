@@ -38,6 +38,12 @@ defmodule Portolan.Controller do
 
   ## Options
 
+  * `:tag` - the tag grouping the operations of the controller in the
+    document. By default, the name of the module without `Controller`, as
+    `User` for `MyAppWeb.UserController`
+
+        use Portolan.Controller, tag: "Users"
+
   * `:cast` - whether actions receive the cast parameters, `true` by
     default. With `false`, parameters are still validated, and invalid
     ones are still rejected, but actions receive them as Phoenix gives
@@ -64,8 +70,14 @@ defmodule Portolan.Controller do
   defmacro __using__(opts) do
     cast = Keyword.get(opts, :cast, true)
 
+    tag = Keyword.get(opts, :tag)
+
     unless is_boolean(cast) do
       raise ArgumentError, "the :cast option of Portolan.Controller must be a boolean"
+    end
+
+    unless is_nil(tag) or is_binary(tag) do
+      raise ArgumentError, "the :tag option of Portolan.Controller must be a string"
     end
 
     quote do
@@ -81,6 +93,10 @@ defmodule Portolan.Controller do
       @doc false
       @spec __portolan__() :: :controller
       def __portolan__, do: :controller
+
+      @doc false
+      @spec __portolan__(:tag) :: String.t() | nil
+      def __portolan__(:tag), do: unquote(tag)
 
       # Replaces the overridable action/2 of Phoenix.Controller.
       @doc false

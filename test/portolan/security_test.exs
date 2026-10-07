@@ -66,6 +66,15 @@ defmodule Portolan.SecurityTest do
     assert message =~ "AccountController.delete/2 requires the security schemes api_key"
   end
 
+  test "operations are named after the module, and grouped by its tag" do
+    document = build!([])
+    echo = document["paths"]["/echo"]["get"]
+
+    assert echo["operationId"] == "RawController.echo"
+    assert echo["tags"] == ["Raw parameters"]
+    assert "Raw parameters" in Enum.map(document["tags"], & &1["name"])
+  end
+
   test "invalid options are reported" do
     assert [schemes, security] = errors(security_schemes: %{bearer: "http"}, security: :bearer)
     assert schemes =~ ":security_schemes"

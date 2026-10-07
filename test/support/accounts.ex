@@ -110,7 +110,7 @@ end
 defmodule Portolan.Test.RawController do
   @moduledoc "Parameters as Phoenix gives them."
   use Phoenix.Controller, formats: [:json]
-  use Portolan.Controller, cast: false
+  use Portolan.Controller, cast: false, tag: "Raw parameters"
 
   @typedoc "Echoed parameters."
   @type echo_params :: %{required(:count) => pos_integer()}
