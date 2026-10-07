@@ -150,6 +150,9 @@ end
   applications use Jason, hence `@derive Jason.Encoder`. If your
   application configures `config :phoenix, :json_library, JSON`, use
   `@derive JSON.Encoder` instead.
+* Fields left out of the JSON, as with
+  `@derive {Jason.Encoder, except: [:internal_notes]}`, are left out of
+  the document too.
 
 ## 8. Write a documented controller
 
@@ -297,3 +300,7 @@ OpenAPI document at <http://localhost:4000/openapi.json>.
 * Serve the interface without depending on a CDN: run
   `mix portolan.ui.install` and set `ui_assets: :local`.
 * Add Markdown pages to the documentation with the `:pages` option.
+* Document how the API is authenticated with `:security_schemes` and
+  `:security`, see `Portolan.Security`.
+* Answer errors with your own format with `:error_renderer`, see
+  `Portolan.ErrorRenderer`.

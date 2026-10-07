@@ -16,6 +16,8 @@ defmodule Portolan.Docs do
     * `text` - the documentation in Markdown, `:none` when it was not
       written and `:hidden` when it was set to `false`
     * `deprecated` - the deprecation message, if any
+    * `security` - the security requirements given with
+      `@doc security: [...]`, if any
     * `line` - where the module, function or type is defined
     """
 
@@ -23,10 +25,11 @@ defmodule Portolan.Docs do
     @type t :: %__MODULE__{
             text: String.t() | :none | :hidden,
             deprecated: String.t() | nil,
+            security: term(),
             line: non_neg_integer() | nil
           }
 
-    defstruct [:text, :deprecated, :line]
+    defstruct [:text, :deprecated, :security, :line]
   end
 
   @typedoc """
@@ -107,6 +110,7 @@ defmodule Portolan.Docs do
     %Entry{
       text: text(doc),
       deprecated: Map.get(metadata, :deprecated),
+      security: Map.get(metadata, :security),
       line: line(anno, metadata)
     }
   end

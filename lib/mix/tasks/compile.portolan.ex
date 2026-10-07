@@ -30,6 +30,16 @@ defmodule Mix.Tasks.Compile.Portolan do
   * `:openapi` - the OpenAPI version, `"3.1"` (default) or `"3.2"`
   * `:pages` - Markdown files added as documentation pages. Each page
     must start with a level one heading, used as its title
+  * `:security_schemes` - the security schemes of the API, by name, with
+    their OpenAPI fields, as `%{bearer: %{type: "http", scheme: "bearer"}}`.
+    See `Portolan.Security`
+  * `:security` - the security requirements of every operation, as
+    `[bearer: []]`, or a `{module, function}` called with the controller
+    and the action name that returns them. Actions can declare their own
+    with `@doc security: ...`. See `Portolan.Security`
+  * `:error_renderer` - the module rendering error responses, both at
+    runtime and in the document, `Portolan.ErrorRenderer.Default` by
+    default. See `Portolan.ErrorRenderer`
   * `:output` - where the document is written, by default
     `"priv/static/openapi.json"`
   * `:ui` - the interface generated to read the document: `:scalar`
@@ -83,7 +93,10 @@ defmodule Mix.Tasks.Compile.Portolan do
           title: Keyword.get_lazy(config, :title, fn -> title(project) end),
           version: Keyword.get(config, :version, project[:version]),
           openapi: Keyword.get(config, :openapi, "3.1"),
-          pages: Keyword.get(config, :pages, [])
+          pages: Keyword.get(config, :pages, []),
+          security_schemes: Keyword.get(config, :security_schemes),
+          security: Keyword.get(config, :security),
+          error_renderer: Keyword.get(config, :error_renderer, Portolan.ErrorRenderer.Default)
         )
       end
 

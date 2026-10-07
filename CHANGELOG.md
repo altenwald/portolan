@@ -32,3 +32,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The Scalar page disables the telemetry and AI features of Scalar, see
   `Portolan.UI.scalar_config/0`.
 - Guides to get started and to embed Scalar in a Phoenix page.
+- Security schemes, with the `:security_schemes` option, and the security
+  requirements of each operation, from `@doc security: ...`, the
+  `:security` option or a `{module, function}` called with the controller
+  and the action. See `Portolan.Security`.
+- `Portolan.ErrorRenderer`, configured with `:error_renderer`, to answer
+  errors with a format of your own, its schemas and the status of
+  validation errors, both at runtime and in the document.
+  `Portolan.ErrorRenderer.Default` keeps the format of Phoenix and `422`.
+- Responses sharing a status, such as an error and the validation errors,
+  are documented as alternatives with `oneOf`.
+- Struct fields left out of the JSON, as with
+  `@derive {Jason.Encoder, only: [...]}` or `except: [...]`, are left out of
+  the document and of the parameters too. See `Portolan.EncodedFields`.
+- `use Portolan.Controller, cast: false` validates the parameters but gives
+  them to the actions as Phoenix does, with string keys.

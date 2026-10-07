@@ -14,7 +14,9 @@ defmodule Portolan.Action do
     * `status` answers `status` without a body, as in `:no_content`
     * `{:error, reason}` answers the status of `reason`, as in
       `{:error, :not_found}`, with an error body
-    * `{:error, Ecto.Changeset.t()}` answers `422` with the validation errors
+    * `{:error, Ecto.Changeset.t()}` answers the validation errors, with the
+      status of the error renderer, `422` by default, see
+      `Portolan.ErrorRenderer`
 
   Statuses are the atoms known by `Plug.Conn.Status`, including the
   custom statuses configured for Plug.
@@ -56,6 +58,8 @@ defmodule Portolan.Action do
   * `file` and `line` - where the action is defined
   * `summary` and `description` - from the `@doc`
   * `deprecated` - from `@deprecated` or `@doc deprecated: ...`
+  * `security` - from `@doc security: ...`, as written, or `nil` to use
+    the security configured for the API
   * `params` - the type of the parameters, or `:undocumented`
   * `responses` - the responses sorted by status, or `:undocumented`
   """
@@ -67,6 +71,7 @@ defmodule Portolan.Action do
           summary: String.t(),
           description: String.t() | nil,
           deprecated: String.t() | nil,
+          security: term(),
           params: Type.t() | :undocumented,
           responses: [Response.t()] | :undocumented
         }
@@ -80,6 +85,7 @@ defmodule Portolan.Action do
     :summary,
     :description,
     :deprecated,
+    :security,
     :params,
     :responses
   ]
@@ -129,6 +135,7 @@ defmodule Portolan.Action do
             summary: summary,
             description: description,
             deprecated: entry.deprecated,
+            security: entry.security,
             params: params,
             responses: responses
           }

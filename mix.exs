@@ -74,7 +74,14 @@ defmodule Portolan.MixProject do
       ],
       groups_for_extras: [Guides: ~r{guides/}],
       groups_for_modules: [
-        "Phoenix integration": [Portolan.Controller, Portolan.Response, Portolan.Contracts],
+        "Phoenix integration": [
+          Portolan.Controller,
+          Portolan.Response,
+          Portolan.ErrorRenderer,
+          Portolan.ErrorRenderer.Default,
+          Portolan.Security,
+          Portolan.Contracts
+        ],
         Compiler: [
           Portolan.Compiler,
           Portolan.Action,
@@ -84,7 +91,13 @@ defmodule Portolan.MixProject do
           Portolan.FieldDocs
         ],
         "OpenAPI document": [Portolan.OpenAPI, ~r/^Portolan.OpenAPI./, Portolan.UI],
-        "Type conversion": [Portolan.Type, Portolan.Typespec, Portolan.JSONSchema, Portolan.Cast],
+        "Type conversion": [
+          Portolan.Type,
+          Portolan.Typespec,
+          Portolan.EncodedFields,
+          Portolan.JSONSchema,
+          Portolan.Cast
+        ],
         Diagnostics: [Portolan.Issue]
       ]
     ]

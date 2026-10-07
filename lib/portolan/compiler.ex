@@ -21,6 +21,7 @@ defmodule Portolan.Compiler do
   alias Portolan.Action
   alias Portolan.Contracts
   alias Portolan.Docs
+  alias Portolan.ErrorRenderer
   alias Portolan.FieldDocs
   alias Portolan.Issue
   alias Portolan.OpenAPI
@@ -28,37 +29,11 @@ defmodule Portolan.Compiler do
   alias Portolan.OpenAPI.Parameter
   alias Portolan.OpenAPI.Schema
   alias Portolan.OpenAPI.Tag
+  alias Portolan.Security
   alias Portolan.Type
   alias Portolan.Typespec
 
   @query_verbs [:get, :head, :delete, :options]
-
-  @error %{
-    "type" => "object",
-    "description" => "An error.",
-    "properties" => %{
-      "errors" => %{
-        "type" => "object",
-        "properties" => %{"detail" => %{"type" => "string"}},
-        "required" => ["detail"]
-      }
-    },
-    "required" => ["errors"]
-  }
-
-  @validation_error %{
-    "type" => "object",
-    "description" => "The request is not valid. Errors are listed by field.",
-    "properties" => %{
-      "errors" => %{
-        "type" => "object",
-        "additionalProperties" => %{"type" => "array", "items" => %{"type" => "string"}}
-      }
-    },
-    "required" => ["errors"]
-  }
-
-  @builtin %{"Portolan.Error" => @error, "Portolan.ValidationError" => @validation_error}
 
   @typedoc """
   Options for `build/2`.
@@ -67,12 +42,21 @@ defmodule Portolan.Compiler do
   * `:version` - the version of the API (required)
   * `:openapi` - the OpenAPI version, `"3.1"` (default) or `"3.2"`
   * `:pages` - Markdown files added as documentation pages
+  * `:security_schemes` - the security schemes of the API, see
+    `Portolan.Security`
+  * `:security` - the security requirements of the operations, or a
+    `{module, function}` returning them, see `Portolan.Security`
+  * `:error_renderer` - the module rendering errors, whose schemas and
+    validation status are documented, see `Portolan.ErrorRenderer`
   """
   @type option ::
           {:title, String.t()}
           | {:version, String.t()}
           | {:openapi, OpenAPI.version()}
           | {:pages, [Path.t()]}
+          | {:security_schemes, map()}
+          | {:security, Security.source()}
+          | {:error_renderer, module()}
 
   @typedoc """
   The result of a build.
@@ -91,9 +75,10 @@ defmodule Portolan.Compiler do
   @spec build(module(), [option()]) :: {:ok, result(), [Issue.t()]} | {:error, [Issue.t()]}
   def build(router, opts) do
     with :ok <- check_version(opts),
+         {:ok, settings} <- check_settings(opts),
          {:ok, router_docs} <- router_docs(router) do
-      {operations, actions, tags, operation_issues} = operations(router)
-      {schemas, schema_issues} = schemas(operations)
+      {operations, actions, tags, operation_issues} = operations(router, settings)
+      {schemas, schema_issues} = schemas(operations, settings.renderer)
       {pages, page_issues} = pages(Keyword.get(opts, :pages, []))
 
       spec = %OpenAPI{
@@ -103,7 +88,8 @@ defmodule Portolan.Compiler do
         description: text(router_docs.moduledoc),
         tags: pages ++ tags,
         operations: operations,
-        schemas: schemas
+        schemas: schemas,
+        security_schemes: settings.schemes
       }
 
       issues = Enum.uniq(operation_issues ++ schema_issues ++ page_issues)
@@ -128,6 +114,61 @@ defmodule Portolan.Compiler do
     end
   end
 
+  defp check_settings(opts) do
+    renderer = Keyword.get(opts, :error_renderer, Portolan.ErrorRenderer.Default)
+
+    renderer_check =
+      if ErrorRenderer.renderer?(renderer),
+        do: :ok,
+        else:
+          {:error,
+           "the :error_renderer #{inspect(renderer)} does not implement Portolan.ErrorRenderer"}
+
+    case {check_security(opts), renderer_check} do
+      {{:ok, security}, :ok} -> {:ok, Map.put(security, :renderer, renderer)}
+      {{:ok, _security}, error} -> {:error, option_issue(error)}
+      {{:error, issues}, error} -> {:error, issues ++ option_issue(error)}
+    end
+  end
+
+  defp check_security(opts) do
+    source = Keyword.get(opts, :security)
+
+    case {check_schemes(Keyword.get(opts, :security_schemes)), check_source(source)} do
+      {{:ok, schemes}, :ok} -> {:ok, %{schemes: schemes, source: source}}
+      {schemes, requirements} -> {:error, Enum.flat_map([schemes, requirements], &option_issue/1)}
+    end
+  end
+
+  defp check_schemes(schemes) do
+    case Security.schemes(schemes) do
+      {:ok, schemes} ->
+        {:ok, schemes}
+
+      :error ->
+        {:error,
+         "the :security_schemes option must map each scheme name to its OpenAPI fields, " <>
+           "as %{bearer: %{type: \"http\", scheme: \"bearer\"}}"}
+    end
+  end
+
+  defp check_source({module, function}) when is_atom(module) and is_atom(function) do
+    if Code.ensure_loaded?(module) and function_exported?(module, function, 2),
+      do: :ok,
+      else: {:error, "the :security function #{inspect(module)}.#{function}/2 does not exist"}
+  end
+
+  defp check_source(requirements) do
+    if Security.normalize(requirements) == :error,
+      do:
+        {:error,
+         "the :security option must be requirements, as [bearer: []], or {module, function}"},
+      else: :ok
+  end
+
+  defp option_issue({:error, message}), do: [Issue.error(message)]
+  defp option_issue(_ok), do: []
+
   defp router_docs(router) do
     if Code.ensure_loaded?(router) and function_exported?(router, :__routes__, 0) do
       Docs.fetch(router)
@@ -138,7 +179,7 @@ defmodule Portolan.Compiler do
 
   # Operations
 
-  defp operations(router) do
+  defp operations(router, settings) do
     routes =
       for route <- Phoenix.Router.routes(router),
           is_atom(route.plug_opts),
@@ -150,7 +191,7 @@ defmodule Portolan.Compiler do
     {operations, issues} =
       routes
       |> Enum.filter(&Map.has_key?(controllers, &1.plug))
-      |> Enum.map(&operation(&1, Map.fetch!(controllers, &1.plug)))
+      |> Enum.map(&operation(&1, Map.fetch!(controllers, &1.plug), settings))
       |> Enum.reduce({[], controller_issues}, fn
         {nil, issues}, {operations, all} -> {operations, all ++ issues}
         {built, issues}, {operations, all} -> {[built | operations], all ++ issues}
@@ -205,7 +246,7 @@ defmodule Portolan.Compiler do
     controller |> Module.split() |> List.last() |> String.replace_suffix("Controller", "")
   end
 
-  defp operation(route, docs) do
+  defp operation(route, docs, settings) do
     case Action.fetch(route.plug, route.plug_opts, docs) do
       :hidden ->
         {nil, []}
@@ -216,17 +257,40 @@ defmodule Portolan.Compiler do
       {:ok, action, warnings} ->
         {path, path_names} = path(route.path)
 
-        case parameters(action, route.verb, path_names) do
-          {:ok, parameters, body} ->
-            {{build_operation(route, action, path, parameters, body), action}, warnings}
-
-          {:error, issues} ->
-            {nil, warnings ++ Issue.put_file(issues, action.file)}
+        with {:ok, requirements} <- requirements(action, settings),
+             {:ok, parameters, body} <- parameters(action, route.verb, path_names) do
+          operation = build_operation(route, action, path, parameters, body, settings.renderer)
+          {{%{operation | security: requirements}, action}, warnings}
+        else
+          {:error, issues} -> {nil, warnings ++ Issue.put_file(issues, action.file)}
         end
     end
   end
 
-  defp build_operation(route, action, path, parameters, body) do
+  defp requirements(action, security) do
+    case Security.resolve(action.security, security.source, action.module, action.name) do
+      {:ok, requirements} ->
+        case Security.unknown(requirements, security.schemes) do
+          [] ->
+            {:ok, requirements}
+
+          unknown ->
+            message =
+              "#{signature(action)} requires the security schemes #{Enum.join(unknown, ", ")}, " <>
+                "which are not declared in :security_schemes"
+
+            {:error, [Issue.error(message, action.line)]}
+        end
+
+      :error ->
+        message =
+          "the security of #{signature(action)} must be requirements, as [bearer: [\"scope\"]]"
+
+        {:error, [Issue.error(message, action.line)]}
+    end
+  end
+
+  defp build_operation(route, action, path, parameters, body, renderer) do
     %Operation{
       method: route.verb,
       path: path,
@@ -237,7 +301,7 @@ defmodule Portolan.Compiler do
       deprecated: action.deprecated,
       parameters: parameters,
       request_body: body,
-      responses: responses(action)
+      responses: responses(action, renderer)
     }
   end
 
@@ -392,39 +456,55 @@ defmodule Portolan.Compiler do
 
   defp scalar?(_type), do: true
 
-  defp responses(%Action{responses: :undocumented}), do: :undocumented
+  defp responses(%Action{responses: :undocumented}, _renderer), do: :undocumented
 
-  defp responses(%Action{} = action) do
+  # Validation errors answer the status of the renderer, which may be the
+  # status of other responses too. Their bodies are then alternatives.
+  defp responses(%Action{} = action, renderer) do
+    validation = renderer.validation_status()
+
     responses =
-      Enum.map(action.responses, fn %Action.Response{status: status, body: body} ->
-        %OpenAPI.Response{status: status, body: response_body(body)}
+      Enum.map(action.responses, fn
+        %Action.Response{body: :validation} -> {validation, :validation}
+        %Action.Response{status: status, body: body} -> {status, body}
       end)
 
     # Parameters are validated, so documented parameters can be rejected.
-    if action.params != :undocumented and not Enum.any?(responses, &(&1.status == 422)) do
-      Enum.sort_by(
-        responses ++ [%OpenAPI.Response{status: 422, body: response_body(:validation)}],
-        & &1.status
-      )
-    else
-      responses
+    responses =
+      if action.params != :undocumented and
+           not Enum.any?(responses, &match?({_, :validation}, &1)),
+         do: responses ++ [{validation, :validation}],
+         else: responses
+
+    responses
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Enum.sort()
+    |> Enum.map(fn {status, bodies} ->
+      %OpenAPI.Response{status: status, body: response_body(bodies)}
+    end)
+  end
+
+  defp response_body(bodies) when is_list(bodies) do
+    case bodies |> Enum.reject(&is_nil/1) |> Enum.uniq() do
+      [] -> nil
+      [body] -> response_body(body)
+      bodies -> {:one_of, Enum.map(bodies, &response_body/1)}
     end
   end
 
-  defp response_body(nil), do: nil
   defp response_body({:data, type}), do: {:type, type}
   defp response_body(:error), do: {:component, "Portolan.Error"}
   defp response_body(:validation), do: {:component, "Portolan.ValidationError"}
 
   # Schemas
 
-  defp schemas(operations) do
-    types = Enum.flat_map(operations, &operation_types/1)
+  defp schemas(operations, renderer) do
+    types = operations |> Enum.flat_map(&operation_types/1) |> Enum.flat_map(&alternatives/1)
 
     builtin =
       for {:component, name} <- types,
           into: %{},
-          do: {name, %Schema{json: Map.fetch!(@builtin, name)}}
+          do: {name, %Schema{json: builtin_schema(renderer, name)}}
 
     refs =
       types
@@ -435,6 +515,12 @@ defmodule Portolan.Compiler do
 
     resolve(refs, builtin, [])
   end
+
+  defp builtin_schema(renderer, "Portolan.Error"), do: renderer.error_schema()
+  defp builtin_schema(renderer, "Portolan.ValidationError"), do: renderer.validation_schema()
+
+  defp alternatives({:one_of, bodies}), do: bodies
+  defp alternatives(body), do: [body]
 
   defp operation_types(operation) do
     params = Enum.map(operation.parameters, &{:type, &1.type})

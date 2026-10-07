@@ -269,8 +269,19 @@ defmodule Portolan.Typespec do
       Enum.reject(fields, &match?({:type, _, _, [{:atom, _, :__struct__}, _value]}, &1))
 
     with {:ok, {:map, fields, nil}} <- map(fields, context) do
-      fields = Enum.map(fields, fn {name, _required, type} -> {name, true, type} end)
+      fields =
+        for {name, _required, type} <- fields, encoded?(module, name), do: {name, true, type}
+
       {:ok, {:struct, module, definition_order(module, fields)}}
+    end
+  end
+
+  # Fields left out of the JSON, as with @derive {Jason.Encoder, only: ...},
+  # are left out of the type too.
+  defp encoded?(module, name) do
+    case Portolan.EncodedFields.fetch(module) do
+      {:ok, fields} -> name in fields
+      :all -> true
     end
   end
 

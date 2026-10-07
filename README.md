@@ -61,8 +61,8 @@ and an optional `include` query parameter, that it answers `200` with a
 `MyApp.User` or `404`, and how to describe all of it.
 
 The same description is used at runtime: `params` arrives with atom keys
-and typed values, invalid parameters are answered with `422` before the
-action runs, and the action returns its result instead of building the
+and typed values, invalid parameters are answered with `422` (or the status
+of your error renderer) before the action runs, and the action returns its result instead of building the
 response. The documentation can never disagree with the validation.
 
 ## Setup
@@ -137,6 +137,9 @@ version (`"3.1"` by default, or `"3.2"`).
 | Parameters and request body   | the second argument of the action `@spec`                 |
 | Responses                     | the return type of the action `@spec`                     |
 | Schemas                       | the referenced `@type`s and their `@typedoc`              |
+| Security schemes              | the `:security_schemes` option                            |
+| Security of the operations    | `@doc security: ...` or the `:security` option            |
+| Error bodies                  | the `:error_renderer` option                              |
 | Documentation pages           | the Markdown files in the `:pages` option                 |
 
 ### Parameters
@@ -162,6 +165,50 @@ documenting a field that does not exist is an error.
 Statuses are the atoms known by `Plug.Conn.Status`. Actions with documented
 parameters also answer `422` when the parameters are not valid. See
 `Portolan.Response` for the bodies of errors.
+
+Fields left out of the JSON of a struct, with
+`@derive {Jason.Encoder, only: [...]}` or `except: [...]`, are left out of
+its schema too.
+
+### Errors
+
+Errors follow the format of Phoenix, `{"errors": {"detail": "Not Found"}}`,
+and validation errors answer `422`. An API with clients that expect
+another format can keep it with a module implementing
+`Portolan.ErrorRenderer`:
+
+```elixir
+config :my_app, Portolan,
+  router: MyAppWeb.Router,
+  error_renderer: MyAppWeb.ApiErrors
+```
+
+The same module answers the errors and describes them in the document,
+including the status of validation errors.
+
+### Security
+
+Declare the security schemes, and the requirements of the operations:
+
+```elixir
+config :my_app, Portolan,
+  router: MyAppWeb.Router,
+  security_schemes: %{bearer: %{type: "http", scheme: "bearer"}},
+  security: {MyAppWeb.ApiSecurity, :requirements}
+```
+
+`:security` takes the requirements of every operation, as `[bearer: []]`,
+or a function called with the controller and the action, so they can
+follow the pipelines of the router. An action can declare its own with
+`@doc security: []`, for a public one, or `@doc security: [bearer: ["admin"]]`.
+See `Portolan.Security`.
+
+### Adopting it in an existing controller
+
+Actions receive their parameters cast, with atom keys. When the actions,
+or the contexts they call, expect the parameters as Phoenix gives them,
+use `use Portolan.Controller, cast: false`: parameters are still
+validated, and documented, but arrive with string keys.
 
 Actions written the classic way, receiving `map()` or returning
 `Plug.Conn.t()`, keep working, but Portolan cannot know what they receive

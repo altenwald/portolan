@@ -68,14 +68,14 @@ defmodule Portolan.OpenAPI do
     * `status` - the HTTP status code
     * `body` - `{:type, type}` for a body described by a type,
       `{:component, name}` for a body described by a component schema,
-      or `nil` for no body
+      `{:one_of, bodies}` for alternative bodies, or `nil` for no body
     """
 
+    @typedoc "The body of a response."
+    @type body :: {:type, Type.t()} | {:component, String.t()} | {:one_of, [body()]}
+
     @typedoc "A response."
-    @type t :: %__MODULE__{
-            status: 100..999,
-            body: {:type, Type.t()} | {:component, String.t()} | nil
-          }
+    @type t :: %__MODULE__{status: 100..999, body: body() | nil}
 
     @enforce_keys [:status, :body]
     defstruct [:status, :body]
@@ -94,6 +94,8 @@ defmodule Portolan.OpenAPI do
     * `parameters` - the path and query parameters
     * `request_body` - the type of the JSON body, if any
     * `responses` - the responses, or `:undocumented`
+    * `security` - the security requirements, see `Portolan.Security`, or
+      `nil` to leave them out
     """
 
     @typedoc "An operation."
@@ -107,7 +109,8 @@ defmodule Portolan.OpenAPI do
             deprecated: String.t() | nil,
             parameters: [Parameter.t()],
             request_body: Type.t() | nil,
-            responses: [Response.t()] | :undocumented
+            responses: [Response.t()] | :undocumented,
+            security: Portolan.Security.t() | nil
           }
 
     @enforce_keys [:method, :path, :operation_id, :responses]
@@ -121,6 +124,7 @@ defmodule Portolan.OpenAPI do
       :deprecated,
       :request_body,
       :responses,
+      :security,
       parameters: []
     ]
   end
@@ -161,6 +165,8 @@ defmodule Portolan.OpenAPI do
   * `tags` - the tags, documentation pages first
   * `operations` - the operations
   * `schemas` - the component schemas, by name
+  * `security_schemes` - the security schemes, by name, with their
+    OpenAPI fields
   """
   @type t :: %__MODULE__{
           version: version(),
@@ -169,11 +175,21 @@ defmodule Portolan.OpenAPI do
           description: String.t() | nil,
           tags: [Tag.t()],
           operations: [Operation.t()],
-          schemas: %{String.t() => Schema.t()}
+          schemas: %{String.t() => Schema.t()},
+          security_schemes: %{String.t() => JSONSchema.t()}
         }
 
   @enforce_keys [:version, :title, :api_version]
-  defstruct [:version, :title, :api_version, :description, tags: [], operations: [], schemas: %{}]
+  defstruct [
+    :version,
+    :title,
+    :api_version,
+    :description,
+    tags: [],
+    operations: [],
+    schemas: %{},
+    security_schemes: %{}
+  ]
 
   @versions %{"3.1" => "3.1.1", "3.2" => "3.2.0"}
 
@@ -212,7 +228,7 @@ defmodule Portolan.OpenAPI do
       "paths" => paths(spec.operations)
     }
     |> put_present("tags", tags(spec.tags, spec.version))
-    |> put_present("components", components(spec.schemas))
+    |> put_present("components", components(spec.schemas, spec.security_schemes))
   end
 
   @doc """
@@ -272,6 +288,7 @@ defmodule Portolan.OpenAPI do
     |> put_present("deprecated", operation.deprecated && true)
     |> put_present("parameters", parameters(operation.parameters))
     |> put_present("requestBody", request_body(operation.request_body))
+    |> put_present("security", operation.security)
   end
 
   defp description(%Operation{deprecated: nil, description: description}), do: description
@@ -320,6 +337,7 @@ defmodule Portolan.OpenAPI do
 
   defp body_schema({:type, type}), do: schema(type)
   defp body_schema({:component, name}), do: component_ref(name)
+  defp body_schema({:one_of, bodies}), do: %{"oneOf" => Enum.map(bodies, &body_schema/1)}
 
   defp json_content(schema), do: %{"application/json" => %{"schema" => schema}}
 
@@ -341,10 +359,19 @@ defmodule Portolan.OpenAPI do
 
   # Components
 
-  defp components(schemas) when map_size(schemas) == 0, do: nil
+  defp components(schemas, security_schemes)
+       when map_size(schemas) == 0 and map_size(security_schemes) == 0,
+       do: nil
 
-  defp components(schemas) do
-    %{"schemas" => Map.new(schemas, fn {name, schema} -> {name, component(schema)} end)}
+  defp components(schemas, security_schemes) do
+    %{}
+    |> put_present(
+      "schemas",
+      if(map_size(schemas) > 0,
+        do: Map.new(schemas, fn {name, schema} -> {name, component(schema)} end)
+      )
+    )
+    |> put_present("securitySchemes", if(map_size(security_schemes) > 0, do: security_schemes))
   end
 
   defp component(%Schema{json: json}) when json != nil, do: json
