@@ -19,7 +19,7 @@ Add Portolan to the dependencies in `mix.exs`:
 defp deps do
   [
     # ...
-    {:portolan, "~> 0.1"}
+    {:portolan, "~> 0.2"}
   ]
 end
 ```

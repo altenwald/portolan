@@ -164,7 +164,7 @@ documenting a field that does not exist is an error.
 | `{:error, :not_found}`         | `404` with an error body                     |
 | `{:error, {:not_found, msg}}`  | the same, with the message `msg`             |
 | `{:ok, Portolan.Text.t()}`     | `200` with plain text, as `text/plain`       |
-| `{:error, Ecto.Changeset.t()}` | `422` with the validation errors             |
+| `{:error, Ecto.Changeset.t()}` | `422` with the validation errors, see Errors |
 
 Statuses are the atoms known by `Plug.Conn.Status`. Actions with documented
 parameters also answer `422` when the parameters are not valid. See
@@ -308,7 +308,7 @@ Add `portolan` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:portolan, "~> 0.1.0"}
+    {:portolan, "~> 0.2.0"}
   ]
 end
 ```
