@@ -130,6 +130,7 @@ defmodule Portolan.ErrorRendererTest do
   end
 
   describe "encoded fields" do
+    # Account has an owner: pid(), which cannot be documented, left out.
     test "fields left out by @derive only and except are not documented" do
       {:ok, %{document: document}, _warnings} = Compiler.build(AccountRouter, @opts)
       schemas = document["components"]["schemas"]

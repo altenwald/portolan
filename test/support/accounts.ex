@@ -1,14 +1,19 @@
 defmodule Portolan.Test.Account do
   @moduledoc false
   @derive {JSON.Encoder, only: [:id, :email]}
-  defstruct [:id, :email, :password_hash]
+  defstruct [:id, :email, :password_hash, :owner]
 
   @typedoc """
   An account.
 
   * `id` - unique identifier
   """
-  @type t :: %__MODULE__{id: pos_integer(), email: String.t(), password_hash: String.t()}
+  @type t :: %__MODULE__{
+          id: pos_integer(),
+          email: String.t(),
+          password_hash: String.t(),
+          owner: pid()
+        }
 end
 
 defmodule Portolan.Test.Token do

@@ -265,25 +265,27 @@ defmodule Portolan.Typespec do
   end
 
   defp struct(module, fields, context) do
+    encoded = Portolan.EncodedFields.fetch(module)
+
+    # Fields left out of the JSON, as with @derive {Jason.Encoder, only: ...},
+    # are left out of the type before converting them, so their types,
+    # such as the associations of an Ecto schema, do not need to be
+    # supported.
     fields =
-      Enum.reject(fields, &match?({:type, _, _, [{:atom, _, :__struct__}, _value]}, &1))
+      Enum.filter(fields, fn
+        {:type, _, _, [{:atom, _, :__struct__}, _value]} -> false
+        {:type, _, _, [{:atom, _, name}, _value]} -> encoded?(encoded, name)
+        _other -> true
+      end)
 
     with {:ok, {:map, fields, nil}} <- map(fields, context) do
-      fields =
-        for {name, _required, type} <- fields, encoded?(module, name), do: {name, true, type}
-
+      fields = Enum.map(fields, fn {name, _required, type} -> {name, true, type} end)
       {:ok, {:struct, module, definition_order(module, fields)}}
     end
   end
 
-  # Fields left out of the JSON, as with @derive {Jason.Encoder, only: ...},
-  # are left out of the type too.
-  defp encoded?(module, name) do
-    case Portolan.EncodedFields.fetch(module) do
-      {:ok, fields} -> name in fields
-      :all -> true
-    end
-  end
+  defp encoded?({:ok, fields}, name), do: name in fields
+  defp encoded?(:all, _name), do: true
 
   # The compiler sorts struct fields, the struct definition keeps the
   # order chosen by the author.
