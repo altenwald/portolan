@@ -68,6 +68,7 @@ defmodule Portolan.MixProject do
       extras: [
         "README.md",
         "guides/getting-started.md",
+        "guides/existing-api.md",
         "guides/embedding-scalar.md",
         "CHANGELOG.md",
         "LICENSE"

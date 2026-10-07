@@ -68,9 +68,10 @@ response. The documentation can never disagree with the validation.
 ## Setup
 
 The [getting started guide](guides/getting-started.md) goes through every
-step in a Phoenix 1.7 or 1.8 application, and the
-[embedding guide](guides/embedding-scalar.md) shows the documentation
-inside a page of your application. In short:
+step in a Phoenix 1.7 or 1.8 application, the
+[existing API guide](guides/existing-api.md) moves an API that already has
+clients, and the [embedding guide](guides/embedding-scalar.md) shows the
+documentation inside a page of your application. In short:
 
 Add the Portolan compiler after the default ones in `mix.exs`:
 
@@ -168,6 +169,10 @@ Statuses are the atoms known by `Plug.Conn.Status`. Actions with documented
 parameters also answer `422` when the parameters are not valid. See
 `Portolan.Response` for the bodies of errors.
 
+Plain text, built with `Portolan.Text.new/1`, is sent as `text/plain`. It
+can share its status with JSON, as `{:ok, [Entry.t()]} | {:ok,
+Portolan.Text.t()}`, and both content types are documented.
+
 Fields left out of the JSON of a struct, with
 `@derive {Jason.Encoder, only: [...]}` or `except: [...]`, are left out of
 its schema too.
@@ -205,12 +210,20 @@ follow the pipelines of the router. An action can declare its own with
 `@doc security: []`, for a public one, or `@doc security: [bearer: ["admin"]]`.
 See `Portolan.Security`.
 
-### Adopting it in an existing controller
+### Tags
+
+The operations of a controller are grouped by a tag, the name of the
+module without `Controller` by default. Name it with
+`use Portolan.Controller, tag: "Users"`.
+
+### Adopting it in an existing API
 
 Actions receive their parameters cast, with atom keys. When the actions,
 or the contexts they call, expect the parameters as Phoenix gives them,
 use `use Portolan.Controller, cast: false`: parameters are still
-validated, and documented, but arrive with string keys.
+validated, and documented, but arrive with string keys. The
+[existing API guide](guides/existing-api.md) moves an API with clients,
+and its own error format, without changing what they receive.
 
 Actions written the classic way, receiving `map()` or returning
 `Plug.Conn.t()`, keep working, but Portolan cannot know what they receive

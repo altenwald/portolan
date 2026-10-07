@@ -211,8 +211,10 @@ What Portolan takes from each part:
   for `GET`, `HEAD`, `DELETE` and `OPTIONS`, and the JSON body for the
   other methods
 * the return type of the `@spec` describes the responses: `{:ok, data}`
-  answers `200`, `{:error, :not_found}` answers `404`. See
-  `Portolan.Response` for all of them
+  answers `200`, `{:error, :not_found}` answers `404`, and
+  `{:error, {:not_found, "Product not found"}}` adds a message to it.
+  `{:ok, Portolan.Text.t()}` answers plain text. See `Portolan.Response`
+  for all of them
 
 At runtime, `params` arrives cast into the type: atom keys, integers as
 integers and `"available"` as `:available`. Parameters that do not match
@@ -299,6 +301,9 @@ OpenAPI document at <http://localhost:4000/openapi.json>.
   `ui: false`.
 * Serve the interface without depending on a CDN: run
   `mix portolan.ui.install` and set `ui_assets: :local`.
+* Move an API that already has clients: see
+  [Adopting Portolan in an existing API](existing-api.md).
+* Name the group of a controller with `use Portolan.Controller, tag: "Products"`.
 * Add Markdown pages to the documentation with the `:pages` option.
 * Document how the API is authenticated with `:security_schemes` and
   `:security`, see `Portolan.Security`.

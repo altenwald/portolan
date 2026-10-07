@@ -31,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   used with `ui_assets: :local`.
 - The Scalar page disables the telemetry and AI features of Scalar, see
   `Portolan.UI.scalar_config/0`.
-- Guides to get started and to embed Scalar in a Phoenix page.
+- Guides to get started, to adopt Portolan in an existing API, and to
+  embed Scalar in a Phoenix page.
 - Security schemes, with the `:security_schemes` option, and the security
   requirements of each operation, from `@doc security: ...`, the
   `:security` option or a `{module, function}` called with the controller
