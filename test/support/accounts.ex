@@ -62,6 +62,10 @@ end
 defmodule Portolan.Test.AccountSecurity do
   @moduledoc false
 
+  @spec responses(module(), atom()) :: list()
+  def responses(_controller, :login), do: []
+  def responses(_controller, _action), do: [unauthorized: :text]
+
   @spec requirements(module(), atom()) :: keyword() | nil
   def requirements(_controller, :login), do: []
   def requirements(_controller, _action), do: [bearer: []]
@@ -127,7 +131,7 @@ end
 defmodule Portolan.Test.RawController do
   @moduledoc "Parameters as Phoenix gives them."
   use Phoenix.Controller, formats: [:json]
-  use Portolan.Controller, cast: false, tag: "Raw parameters"
+  use Portolan.Controller, cast: false, tag: "Raw parameters", responses: [:too_many_requests]
 
   @typedoc "Echoed parameters."
   @type echo_params :: %{required(:count) => pos_integer()}

@@ -30,6 +30,7 @@ defmodule Portolan.Compiler do
   alias Portolan.OpenAPI.Schema
   alias Portolan.OpenAPI.Tag
   alias Portolan.Security
+  alias Portolan.SharedResponses
   alias Portolan.Type
   alias Portolan.Typespec
 
@@ -46,6 +47,8 @@ defmodule Portolan.Compiler do
     `Portolan.Security`
   * `:security` - the security requirements of the operations, or a
     `{module, function}` returning them, see `Portolan.Security`
+  * `:responses` - responses shared by every operation, or a
+    `{module, function}` returning them, see `Portolan.SharedResponses`
   * `:error_renderer` - the module rendering errors, whose schemas and
     validation status are documented, see `Portolan.ErrorRenderer`
   """
@@ -56,6 +59,7 @@ defmodule Portolan.Compiler do
           | {:pages, [Path.t()]}
           | {:security_schemes, map()}
           | {:security, Security.source()}
+          | {:responses, Portolan.SharedResponses.source()}
           | {:error_renderer, module()}
 
   @typedoc """
@@ -124,10 +128,32 @@ defmodule Portolan.Compiler do
           {:error,
            "the :error_renderer #{inspect(renderer)} does not implement Portolan.ErrorRenderer"}
 
-    case {check_security(opts), renderer_check} do
-      {{:ok, security}, :ok} -> {:ok, Map.put(security, :renderer, renderer)}
-      {{:ok, _security}, error} -> {:error, option_issue(error)}
-      {{:error, issues}, error} -> {:error, issues ++ option_issue(error)}
+    responses = Keyword.get(opts, :responses)
+
+    checks = [renderer_check, check_responses(responses)]
+
+    case {check_security(opts), Enum.flat_map(checks, &option_issue/1)} do
+      {{:ok, security}, []} ->
+        {:ok, Map.merge(security, %{renderer: renderer, responses: responses})}
+
+      {{:ok, _security}, issues} ->
+        {:error, issues}
+
+      {{:error, security_issues}, issues} ->
+        {:error, security_issues ++ issues}
+    end
+  end
+
+  defp check_responses({module, function}) when is_atom(module) and is_atom(function) do
+    if Code.ensure_loaded?(module) and function_exported?(module, function, 2),
+      do: :ok,
+      else: {:error, "the :responses function #{inspect(module)}.#{function}/2 does not exist"}
+  end
+
+  defp check_responses(responses) do
+    case SharedResponses.normalize(responses) do
+      {:ok, _responses} -> :ok
+      {:error, message} -> {:error, "the :responses option is not valid: " <> message}
     end
   end
 
@@ -265,12 +291,25 @@ defmodule Portolan.Compiler do
         {path, path_names} = path(route.path)
 
         with {:ok, requirements} <- requirements(action, settings),
+             {:ok, shared} <- shared_responses(action, settings),
              {:ok, parameters, body} <- parameters(action, route.verb, path_names) do
-          operation = build_operation(route, action, path, parameters, body, settings.renderer)
+          operation =
+            build_operation(route, action, path, parameters, body, {settings.renderer, shared})
+
           {{%{operation | security: requirements}, action}, warnings}
         else
           {:error, issues} -> {nil, warnings ++ Issue.put_file(issues, action.file)}
         end
+    end
+  end
+
+  defp shared_responses(action, settings) do
+    case SharedResponses.resolve(settings.responses, action.module, action.name) do
+      {:ok, responses} ->
+        {:ok, responses}
+
+      {:error, message} ->
+        {:error, [Issue.error("#{signature(action)}: #{message}", action.line)]}
     end
   end
 
@@ -297,7 +336,7 @@ defmodule Portolan.Compiler do
     end
   end
 
-  defp build_operation(route, action, path, parameters, body, renderer) do
+  defp build_operation(route, action, path, parameters, body, {renderer, shared}) do
     %Operation{
       method: route.verb,
       path: path,
@@ -308,7 +347,7 @@ defmodule Portolan.Compiler do
       deprecated: action.deprecated,
       parameters: parameters,
       request_body: body,
-      responses: responses(action, renderer)
+      responses: responses(action, renderer, shared)
     }
   end
 
@@ -463,18 +502,18 @@ defmodule Portolan.Compiler do
 
   defp scalar?(_type), do: true
 
-  defp responses(%Action{responses: :undocumented}, _renderer), do: :undocumented
+  defp responses(%Action{responses: :undocumented}, _renderer, _shared), do: :undocumented
 
   # Validation errors answer the status of the renderer, which may be the
   # status of other responses too. Their bodies are then alternatives.
-  defp responses(%Action{} = action, renderer) do
+  defp responses(%Action{} = action, renderer, shared) do
     validation = renderer.validation_status()
 
     responses =
       Enum.map(action.responses, fn
         %Action.Response{body: :validation} -> {validation, :validation}
         %Action.Response{status: status, body: body} -> {status, body}
-      end)
+      end) ++ shared
 
     # Parameters are validated, so documented parameters can be rejected.
     responses =

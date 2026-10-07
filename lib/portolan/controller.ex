@@ -44,6 +44,12 @@ defmodule Portolan.Controller do
 
         use Portolan.Controller, tag: "Users"
 
+  * `:responses` - responses its plugs send before the actions, added to
+    every operation of the controller, as `[:forbidden, :not_found]`. See
+    `Portolan.SharedResponses`
+
+        use Portolan.Controller, responses: [:not_found]
+
   * `:cast` - whether actions receive the cast parameters, `true` by
     default. With `false`, parameters are still validated, and invalid
     ones are still rejected, but actions receive them as Phoenix gives
@@ -71,9 +77,14 @@ defmodule Portolan.Controller do
     cast = Keyword.get(opts, :cast, true)
 
     tag = Keyword.get(opts, :tag)
+    responses = Keyword.get(opts, :responses, [])
 
     unless is_boolean(cast) do
       raise ArgumentError, "the :cast option of Portolan.Controller must be a boolean"
+    end
+
+    unless is_list(responses) do
+      raise ArgumentError, "the :responses option of Portolan.Controller must be a list"
     end
 
     unless is_nil(tag) or is_binary(tag) do
@@ -95,8 +106,9 @@ defmodule Portolan.Controller do
       def __portolan__, do: :controller
 
       @doc false
-      @spec __portolan__(:tag) :: String.t() | nil
+      @spec __portolan__(:tag | :responses) :: term()
       def __portolan__(:tag), do: unquote(tag)
+      def __portolan__(:responses), do: unquote(Macro.escape(responses))
 
       # Replaces the overridable action/2 of Phoenix.Controller.
       @doc false

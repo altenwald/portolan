@@ -141,6 +141,7 @@ version (`"3.1"` by default, or `"3.2"`).
 | Security schemes              | the `:security_schemes` option                            |
 | Security of the operations    | `@doc security: ...` or the `:security` option            |
 | Error bodies                  | the `:error_renderer` option                              |
+| Responses sent by plugs       | the `:responses` options                                  |
 | Documentation pages           | the Markdown files in the `:pages` option                 |
 
 ### Parameters
@@ -209,6 +210,28 @@ or a function called with the controller and the action, so they can
 follow the pipelines of the router. An action can declare its own with
 `@doc security: []`, for a public one, or `@doc security: [bearer: ["admin"]]`.
 See `Portolan.Security`.
+
+### Shared responses
+
+Plugs answer before the actions: the authentication pipeline of the
+router, or a plug of the controller loading the resource of the path.
+Declare their responses once, for every operation or for the ones of a
+controller:
+
+```elixir
+config :my_app, Portolan,
+  router: MyAppWeb.Router,
+  responses: [unauthorized: :text]
+```
+
+```elixir
+use Portolan.Controller, responses: [:forbidden, :not_found]
+```
+
+A status is an error body of the error renderer, `{status, :text}` plain
+text and `{status, nil}` no body. `:responses` also takes a function
+called with the controller and the action, as `:security`. See
+`Portolan.SharedResponses`.
 
 ### Tags
 

@@ -82,6 +82,7 @@ defmodule Portolan.MixProject do
           Portolan.ErrorRenderer,
           Portolan.ErrorRenderer.Default,
           Portolan.Security,
+          Portolan.SharedResponses,
           Portolan.Contracts
         ],
         Compiler: [

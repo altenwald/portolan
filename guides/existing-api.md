@@ -221,21 +221,44 @@ end
 
 ## 7. Responses of plugs
 
-Responses sent by plugs, as a `404` when the zone of the path does not
-exist or a `403` when the token lacks a scope, happen before the action.
-Add them to the `@spec` of the actions they guard, so they are documented:
+Responses sent by plugs happen before the action, so they are not in its
+`@spec`. Declare them where the plugs are.
+
+The pipelines of the router apply to every operation, as an
+authentication plug answering `401` with a line of text:
 
 ```elixir
-@spec index(Plug.Conn.t(), index_params()) ::
-        {:ok, records_response()} | {:error, :forbidden | :not_found}
+config :my_app, Portolan,
+  router: MyAppWeb.Router,
+  responses: [unauthorized: :text]
 ```
 
-Keep their bodies in the format of your renderer, calling it from the
-plug if you like:
+When only some routes go through them, give a function, called with the
+controller and the action, as for `:security`:
+
+```elixir
+config :my_app, Portolan,
+  router: MyAppWeb.Router,
+  responses: {MyAppWeb.ApiSecurity, :responses}
+```
+
+The plugs of a controller apply to its operations, as a plug answering
+`404` when the zone of the path does not exist, or `403` when the token
+lacks the scope of the action:
+
+```elixir
+use Portolan.Controller, cast: false, tag: "DNS records", responses: [:forbidden, :not_found]
+```
+
+A status is an error body, as the error renderer sends it,
+`{status, :text}` plain text and `{status, nil}` no body. Keep the bodies
+the plugs send in the format of the renderer, calling it if you like:
 
 ```elixir
 conn |> MyAppWeb.ApiErrors.render_error(404, :not_found, nil) |> halt()
 ```
+
+See `Portolan.SharedResponses`.
 
 ## 8. Replace the old document
 
@@ -253,7 +276,7 @@ test "every scope is documented" do
     Portolan.Compiler.build(
       config[:router],
       [title: "My API", version: "1"] ++
-        Keyword.take(config, [:security_schemes, :security, :error_renderer])
+        Keyword.take(config, [:security_schemes, :security, :responses, :error_renderer])
     )
 
   scopes =

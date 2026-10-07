@@ -37,6 +37,10 @@ defmodule Mix.Tasks.Compile.Portolan do
     `[bearer: []]`, or a `{module, function}` called with the controller
     and the action name that returns them. Actions can declare their own
     with `@doc security: ...`. See `Portolan.Security`
+  * `:responses` - responses every operation can get before its action
+    runs, as the ones of the pipelines of the router: `[unauthorized: :text]`,
+    or a `{module, function}` called with the controller and the action
+    name that returns them. See `Portolan.SharedResponses`
   * `:error_renderer` - the module rendering error responses, both at
     runtime and in the document, `Portolan.ErrorRenderer.Default` by
     default. See `Portolan.ErrorRenderer`
@@ -96,6 +100,7 @@ defmodule Mix.Tasks.Compile.Portolan do
           pages: Keyword.get(config, :pages, []),
           security_schemes: Keyword.get(config, :security_schemes),
           security: Keyword.get(config, :security),
+          responses: Keyword.get(config, :responses),
           error_renderer: Keyword.get(config, :error_renderer, Portolan.ErrorRenderer.Default)
         )
       end

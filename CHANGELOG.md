@@ -50,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Struct fields left out of the JSON, as with
   `@derive {Jason.Encoder, only: [...]}` or `except: [...]`, are left out of
   the document and of the parameters too. See `Portolan.EncodedFields`.
+- Shared responses, sent by plugs before the actions: for every operation
+  with the `:responses` option, a list or a `{module, function}`, and for
+  the operations of a controller with
+  `use Portolan.Controller, responses: [...]`. See
+  `Portolan.SharedResponses`.
 - `use Portolan.Controller, tag: "Users"` sets the tag of the operations
   of a controller.
 - `use Portolan.Controller, cast: false` validates the parameters but gives

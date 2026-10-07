@@ -309,3 +309,5 @@ OpenAPI document at <http://localhost:4000/openapi.json>.
   `:security`, see `Portolan.Security`.
 * Answer errors with your own format with `:error_renderer`, see
   `Portolan.ErrorRenderer`.
+* Document the responses of plugs, as the `401` of an authentication
+  pipeline, with `:responses`, see `Portolan.SharedResponses`.
